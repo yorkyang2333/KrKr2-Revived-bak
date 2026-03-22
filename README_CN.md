@@ -1,156 +1,232 @@
-# KrKr2 模拟器
+# KrKr2-Revived
 
-KrKr2 模拟器是一款跨平台的模拟器，旨在运行使用吉里吉里引擎（也称为 T Visual Presenter）制作的游戏。该模拟器支持在 Android、Windows 和 Linux 等多个平台上运行，帮助用户在不同设备上体验吉里吉里引擎制作的游戏。
+KrKr2-Revived 是一款**跨平台**的 KiriKiri 引擎（T Visual Presenter）模拟器，目标是在 Windows / macOS / Linux / iOS / Android 上运行吉里吉里2引擎制作的游戏。
+
+本仓库目前正在进行**全面重构**，将底层从 Cocos2d-x 解耦，迁移到现代 C++ 架构，并以 Flutter 重写 UI 层。
 
 **语言 / Language**: 中文 | [English](README.md)
 
+---
+
 ## 目录
 
-- [KrKr2 模拟器](#krkr2-模拟器)
-  - [目录](#目录)
-  - [支持平台](#支持平台)
-  - [依赖构建工具](#依赖构建工具)
-  - [编译环境配置](#编译环境配置)
-    - [环境变量](#环境变量)
-    - [编译步骤](#编译步骤)
-  - [可执行文件位置](#可执行文件位置)
-  - [代码格式化](#代码格式化)
-  - [支持的游戏列表](#支持的游戏列表)
-  - [插件资源](#插件资源)
-  - [许可证](#许可证)
+- [支持平台](#支持平台)
+- [构建依赖](#构建依赖)
+- [编译步骤](#编译步骤)
+- [架构设计](#架构设计)
+- [重构进度](#重构进度)
+- [支持的游戏](#支持的游戏)
+- [许可证](#许可证)
+
+---
 
 ## 支持平台
 
-- **Android**:
-  - `arm64-v8a`
-  - `x86_64`
-- **Windows**:
-  - x86_64
-- **Linux**:
-  - x86_64
-- **MacOS**:
-  - arm64
+| 平台 | 架构 | 状态 |
+|------|------|------|
+| Windows | x86_64 | ✅ 支持 |
+| Linux | x86_64 | ✅ 支持 |
+| macOS | arm64 | ✅ 支持 |
+| Android | arm64-v8a, x86_64 | ✅ 支持 |
+| iOS | arm64 | 🔄 规划中 |
 
-## 依赖构建工具
+---
 
-- **Android**:
-  - [ninja@latest](https://github.com/ninja-build/ninja/releases)
-  - [cmake@3.31.1+](https://cmake.org/download/)
-  - [vcpkg@latest](https://learn.microsoft.com/en-us/vcpkg/get_started/get-started)
-  - [Android SDK@33](https://developer.android.com)
-  - [Android NDK@28.0.13004108](https://developer.android.com/ndk/downloads)
-  - [JDK@17](https://jdk.java.net/archive/)
-  - `bison@3.8.2+`
-  - `python3`
-  - `NASM@latest`
-- **Windows**:
-  - [ninja@latest](https://github.com/ninja-build/ninja/releases)
-  - `Visual Studio 2022`
-  - `vcpkg@latest`
-  - [cmake@3.31.1+](https://cmake.org/download/)
-  - [winflexbison@2.5.25](https://github.com/lexxmark/winflexbison)
-  - `python3`
-  - `NASM@latest`
-- **Linux**:
-  - [ninja@latest](https://github.com/ninja-build/ninja/releases)
-  - `GCC`
-  - `vcpkg@latest`
-  - [cmake@3.31.1+](https://cmake.org/download/)
-  - `bison@3.8.2+`
-  - `python3`
-  - `NASM@latest`
-  - `YASM`
-- **MacOS**:
-  - Xcode
-  - `vcpkg@latest`
-  - [ninja@latest](https://github.com/ninja-build/ninja/releases)
-  - [cmake@3.31.1+](https://cmake.org/download/)
-  - `bison@3.8.2+`
-  - `python3`
-  - `NASM@latest`
+## 构建依赖
 
-## 编译环境配置
+| 工具 | 版本要求 |
+|------|---------|
+| CMake | 3.31.1+ |
+| Ninja | latest |
+| vcpkg | latest |
+| bison | 3.8.2+（Windows 用 winflexbison） |
+| python3 | any |
+| NASM | latest |
+
+**平台附加依赖：**
+- **Windows**: Visual Studio 2022, [winflexbison](https://github.com/lexxmark/winflexbison)
+- **Android**: Android SDK 33, NDK 28.0.13004108, JDK 17
+- **macOS**: Xcode, YASM
 
 ### 环境变量
 
-请根据所使用的平台配置以下环境变量：
+```bash
+# Linux / macOS / Android
+export VCPKG_ROOT=/path/to/vcpkg
 
-- **Android**:
-  - `VCPKG_ROOT`: `/path/to/vcpkg`
-  - `ANDROID_SDK`: `/path/to/androidsdk`
-  - `ANDROID_NDK`: `/path/to/androidndk`
-- **Windows**:
-  - `VCPKG_ROOT`: `D:/vcpkg`（注意使用正斜杠 `/` 或双反斜杠 `\\`）
-  - `bison`: 将 `winflexbison` 的路径添加到 `PATH` 环境变量中。
-- **Linux OR MacOS**:
-  - `VCPKG_ROOT`: `/path/to/vcpkg`
+# Android 附加
+export ANDROID_SDK=/path/to/androidsdk
+export ANDROID_NDK=/path/to/androidndk
 
-> **注意**: 在 Windows 上，环境变量路径必须使用 `/` 或 `\\`，避免使用单一的 `\`。例如：
->
-> - **错误示例**: `D:\vcpkg`（cmake 不转义 `\`，导致路径错误）
-> - **正确示例**: `D:/vcpkg`
+# Windows（使用正斜杠）
+set VCPKG_ROOT=D:/vcpkg
+```
 
-### 编译步骤
+---
 
-- **Android**:
-  - 运行: `./platforms/android/gradlew -p ./platforms/android assembleDebug`
-> 如果遇到`glib`无法安装查看[FAQ#安装glib失败](./doc/FAQ.md#安装glib失败)
-  
-- **Windows**:
-  - 运行: `./scripts/build-windows.bat`
-  
-- **Linux**:
-  - 运行: `./scripts/build-linux.sh`
+## 编译步骤
 
-- **MacOS**:
-  - 运行:
-  ```
-    cmake --preset="MacOS Debug Config"
-    cmake --build --preset="MacOS Debug Build"
-  ```
-  
-- **使用Docker容器**:
-  - Build Android: `docker build -f .devcontainer/android.Dockerfile -t android-builder .`
-  - Build Linux: `docker build -f .devcontainer/linux.Dockerfile -t linux-builder .`
+**macOS**:
+```bash
+cmake --preset="MacOS Debug Config"
+cmake --build --preset="MacOS Debug Build"
+# 产物: out/macos/debug/bin/krkr2/krkr2.app
+```
 
-## 可执行文件位置
+**Linux**:
+```bash
+./scripts/build-linux.sh
+# 产物: out/linux/debug/bin/krkr2/krkr2
+```
 
-- **Android**:
-  - Debug 版本: `platforms/android/out/android/app/outputs/apk/debug/*.apk`
-  - Release 版本: `platforms/android/out/android/app/outputs/apk/release/*.apk`
-- **Windows**:
-  - 可执行文件: `out/windows/debug/bin/krkr2/krkr2.exe`
-- **Linux**:
-  - 可执行文件: `out/linux/debug/bin/krkr2/krkr2`
-- **MacOS**:
-  - 可执行文件: `out/macos/debug/bin/krkr2/krkr2.app`
+**Windows**:
+```powershell
+./scripts/build-windows.bat
+# 产物: out/windows/debug/bin/krkr2/krkr2.exe
+```
+
+**Android**:
+```bash
+./platforms/android/gradlew -p ./platforms/android assembleDebug
+# 产物: platforms/android/out/android/app/outputs/apk/debug/*.apk
+```
+
+**Docker**:
+```bash
+docker build -f dockers/linux.Dockerfile -t linux-builder .
+docker build -f dockers/android.Dockerfile -t android-builder .
+```
+
+---
+
+## 架构设计
+
+### 目标架构
+
+原项目深度耦合 Cocos2d-x，现重构为三层：
+
+```
+┌─────────────────────────────────┐
+│         Flutter UI 层           │  ← Dart FFI 调用 C-API
+├─────────────────────────────────┤
+│     C-API（扁平接口层）          │  ← 稳定的跨语言边界
+├─────────────────────────────────┤
+│      C++ 引擎核心（backend/）    │  ← 独立编译，无平台依赖
+│  ┌──────────┬──────────────┐    │
+│  │  TJS2    │  渲染抽象    │    │
+│  │  脚本    │  IRenderer   │    │
+│  │  引擎    │  IWindow     │    │
+│  └──────────┴──────────────┘    │
+└─────────────────────────────────┘
+```
+
+### 目录结构（当前）
+
+```
+KrKr2-Revived/
+├── backend/
+│   ├── core/                  ← 纯 C++ 引擎核心（无平台依赖）
+│   │   ├── tjs2/              ← TJS2 脚本引擎
+│   │   ├── base/              ← 存档、事件、脚本调度等核心逻辑
+│   │   ├── visual/            ← 图层、窗口接口（含 gl/）
+│   │   ├── sound/             ← 音频接口
+│   │   ├── utils/             ← 工具库（编码、iconv 等）
+│   │   ├── environ/           ← 环境抽象（含 ConfigManager/）
+│   │   ├── movie/             ← 视频播放（ffmpeg）
+│   │   ├── plugin/            ← 插件框架（PluginIntf, ncbind）
+│   │   ├── extension/         ← 扩展框架
+│   │   └── common/            ← 公共头文件
+│   ├── include/               ← 对外公共头文件
+│   ├── plugins/               ← 具体插件（steam, psbfile, psdfile 等）
+│   ├── external/              ← 第三方库（libbpg, minizip legacy）
+│   └── platform/
+│       ├── legacy_cocos2d/    ← 原 cocos2d 渲染实现（待替换）
+│       └── environ_legacy/    ← 各平台实现（win32/ apple/ android/ linux/ sdl/）
+├── platforms/                 ← 平台工程（Android Gradle 等）
+├── doc/                       ← 文档
+├── scripts/                   ← 构建脚本
+├── tests/                     ← 测试
+└── CMakeLists.txt
+```
+
+### 技术选型
+
+| 层次 | 当前 | 目标 |
+|------|------|------|
+| 脚本引擎 | TJS2 | TJS2（保留） |
+| 渲染 | Cocos2d-x | `IRenderer` 接口 + SDL3/bgfx/Metal |
+| 输入 | SDL2 | SDL3 |
+| 音频 | 待定 | miniaudio / SDL3 |
+| 包管理 | vcpkg manifest | vcpkg manifest |
+| UI | Cocos Studio | Flutter + Dart FFI |
+
+---
+
+## 重构进度
+
+> 详细任务记录见 [doc/refactor_tasks.md](./doc/refactor_tasks.md)
+
+### 阶段一：核心解耦 ✅ 已完成
+
+- [x] 建立 `backend/` 目录结构
+- [x] 将 `cpp/core` → `backend/core`
+- [x] 将 `cpp/plugins` → `backend/plugins`
+- [x] 将 `cpp/external` → `backend/external`
+- [x] 清理废弃目录（`cpp/`, `ui/`, 旧构建目录）
+
+### 阶段二：核心模块独立编译 🔄 进行中
+
+已通过编译（macOS arm64）：
+- [x] `tjs2` ✅
+- [x] `core_utils_module` ✅
+- [x] `core_base_module` ✅（部分文件待移植）
+
+待完成：
+- [ ] 移植 `ZIPArchive.cpp` 到 minizip-ng 原生 API
+- [ ] 解决 `ScriptMgnIntf.cpp` 的 CDDAImpl 平台依赖
+
+### 阶段三：渲染层重写 ⬜ 待开始
+
+- [ ] 实现 `IRenderer` / `IWindow` SDL3/SDL2 后端
+- [ ] 图层位图硬件加速合成
+- [ ] 输入事件接入
+- [ ] Live2D 插件迁移到新渲染管线
+
+### 阶段四：Flutter UI 整合 ⬜ 待开始
+
+- [ ] 初始化 Flutter `frontend/` 工程
+- [ ] Dart FFI 绑定 C-API
+- [ ] 用 Flutter 重写主菜单、控制台、文件选择器
+- [ ] CI/CD 全平台自动编译
+
+---
 
 ## 代码格式化
-- `clang-format@20`
-- **Linux**:
-    ```bash
-    clang-format -i --verbose $(find ./cpp ./platforms ./tests ./tools -regex ".+\.\(cpp\|cc\|h\|hpp\|inc\)")
-    ```
 
-- **MacOS**:
-    ```bash
-    clang-format -i --verbose $(find ./cpp ./platforms ./tests ./tools -name "*.cpp" -o -name "*.cc" -o -name "*.h" -o -name "*.hpp" -o -name "*.inc")
-    ```
+使用 `clang-format@20`：
 
-- **Windows**:
-    ```powershell
-    Get-ChildItem -Path ./cpp, ./platforms, ./tests, ./tools -Recurse -File | 
-    Where-Object { $_.Name -match '\.(cpp|cc|h|hpp|inc)$' } | 
-    ForEach-Object { clang-format -i --verbose $_.FullName }
-    ```
+**Linux / macOS**:
+```bash
+clang-format -i --verbose $(find ./backend ./platforms ./tests ./tools -name "*.cpp" -o -name "*.cc" -o -name "*.h" -o -name "*.hpp" -o -name "*.inc")
+```
 
-## 支持的游戏列表
-- [games](./doc/support_games.txt)
+**Windows**:
+```powershell
+Get-ChildItem -Path ./backend, ./platforms, ./tests, ./tools -Recurse -File |
+Where-Object { $_.Name -match '\.(cpp|cc|h|hpp|inc)$' } |
+ForEach-Object { clang-format -i --verbose $_.FullName }
+```
 
-## 插件资源
+---
 
-您可以在 [wamsoft 的 GitHub 仓库](https://github.com/orgs/wamsoft/repositories?type=all) 中找到相关的插件和工具库。
+## 支持的游戏
+
+游戏兼容列表：[doc/support_games.txt](./doc/support_games.txt)
+
+插件资源：[wamsoft GitHub 仓库](https://github.com/orgs/wamsoft/repositories?type=all)
+
+---
 
 ## 许可证
 
-此项目遵循 MIT 许可证。详细信息请参阅 [LICENSE](./LICENSE) 文件。
+本项目遵循 MIT 许可证，详见 [LICENSE](./LICENSE)。
