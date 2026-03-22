@@ -4,7 +4,7 @@
 
 This project is a refactor based on the original project [2468785842/krkr2](https://github.com/2468785842/krkr2).
 
-This repository is currently undergoing a **full architectural refactor** — decoupling the engine from Cocos2d-x, rebuilding core modules in modern C++, and replacing the UI layer with Flutter.
+This repository is currently undergoing a **full architectural refactor** — decoupling the engine from Cocos2d-x, rebuilding core modules in modern C++, and replacing the UI layer with Flutter. Licensed under **GNU General Public License v3.0**.
 
 **语言 / Language**: [中文](README_CN.md) | English
 
@@ -230,4 +230,4 @@ Plugin resources: [wamsoft GitHub repositories](https://github.com/orgs/wamsoft/
 
 ## License
 
-MIT License. See [LICENSE](./LICENSE) for details.
+**GNU General Public License v3.0**. See [LICENSE](./LICENSE) for details.
