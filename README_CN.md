@@ -2,6 +2,8 @@
 
 KrKr2-Revived 是一款**跨平台**的 KiriKiri 引擎（T Visual Presenter）模拟器，目标是在 Windows / macOS / Linux / iOS / Android 上运行吉里吉里2引擎制作的游戏。
 
+本项目基于原项目 [2468785842/krkr2](https://github.com/2468785842/krkr2) 进行重构。
+
 本仓库目前正在进行**全面重构**，将底层从 Cocos2d-x 解耦，迁移到现代 C++ 架构，并以 Flutter 重写 UI 层。
 
 **语言 / Language**: 中文 | [English](README.md)

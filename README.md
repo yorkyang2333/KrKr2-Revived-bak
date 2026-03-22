@@ -2,6 +2,8 @@
 
 **KrKr2-Revived** is a cross-platform emulator for games built with the **KiriKiri engine** (T Visual Presenter).
 
+This project is a refactor based on the original project [2468785842/krkr2](https://github.com/2468785842/krkr2).
+
 This repository is currently undergoing a **full architectural refactor** — decoupling the engine from Cocos2d-x, rebuilding core modules in modern C++, and replacing the UI layer with Flutter.
 
 **语言 / Language**: [中文](README_CN.md) | English
