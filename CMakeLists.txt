@@ -27,6 +27,9 @@ set(APP_NAME krkr2)
 
 project(${APP_NAME})
 
+# Rust integration via Corrosion
+include(cmake/rust.cmake)
+
 option(ENABLE_TESTS "enable tests execute build(exclude android)" ON)
 option(BUILD_TOOLS "build tools execute build(exclude android ios)" ON)
 
@@ -87,6 +90,9 @@ endif()
 
 # external lib
 # add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/cpp/external)
+
+# Rust crates
+add_subdirectory(backend/rust)
 
 # build library
 add_subdirectory(${KRKR2CORE_PATH})

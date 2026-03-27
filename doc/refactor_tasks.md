@@ -109,7 +109,39 @@ KrKr2-Revived/
 
 - `tjs2/tjsBinarySerializer.h` — `ULONG_MAX` 与 `tjs_uint` 的永真比较 ✅ 已修复（改为 `UINT32_MAX`）
 
-### 第三阶段：渲染层与输入层重写 ⬜ 待开始
+### 第三阶段：Rust 重构底层组件 🔄 进行中
+
+#### Phase 3a — FFI 基础设施 + 试点模块 ✅ 已完成
+
+| 任务 | 状态 |
+|------|------|
+| 创建 `backend/rust/` Cargo workspace | ✅ |
+| CMake Corrosion 集成（FetchContent v0.5.1） | ✅ |
+| `krkr2-crypto` crate：替代 `md5.c` + `Random.cpp` | ✅ |
+| `krkr2-fft` crate：替代 `RealFFT_Default.cpp`（Ooura FFT 移植） | ✅ |
+| cbindgen 自动生成 C 头文件 | ✅ |
+| Rust 单元测试（6/6 通过） | ✅ |
+| CMake 全量编译验证（tjs2 + core_utils_module + core_base_module） | ✅ |
+
+#### Phase 3b — 编码层 ⬜ 待开始
+
+| 任务 | 状态 |
+|------|------|
+| `krkr2-encoding` crate（encoding_rs 封装） | ⬜ |
+| 替换 `gbk2unicode.c` + `jis2unicode.c`（~880KB） | ⬜ |
+
+#### Phase 3c — 存档层 ⬜ 待开始
+
+| 任务 | 状态 |
+|------|------|
+| `krkr2-archive` crate（XP3/ZIP/TAR/7z） | ⬜ |
+| 替换 `xp3filter.cpp` | ⬜ |
+
+#### Phase 3d — KAG 解析器 ⬜ 待开始
+
+#### Phase 3e — 音频 DSP ⬜ 待开始
+
+### 第四阶段：渲染层与输入层重写 ⬜ 待开始
 
 | 任务 | 状态 |
 |------|------|
@@ -174,6 +206,13 @@ KrKr2-Revived/
 - 删除：`cpp/`（内容已全量迁移到 `backend/`）
 - 删除：`ui/`（Cocos Studio 工程，已弃用）
 
+### Rust 基础设施接入（2026-03-27）
+- 新增 `backend/rust/` 目录存放 Rust 源码
+- `CMakeLists.txt` 集成 Corrosion，支持 CMake ↔ Cargo 联编
+- `.gitignore` 排除 `target/` 和生成的 C 头文件
+- **试点替换**：`md5.c`, `Random.cpp`, `RealFFT_Default.cpp` 已彻底从 utils 模块中移除，改为链接 Rust 静态库
+
+
 ---
 
 ## 五、构建验证
@@ -190,7 +229,10 @@ cmake --build out/macos/debug --target core_base_module
 
 ## 六、下一步建议
 
-1. **启动第三阶段**：着手 SDL3/SDL2 渲染后端接入
+1. **Phase 3b: 编码层重构**：使用 `encoding_rs` 替代所有手写查表和 iconv 逻辑。
+2. **Phase 3c: 存档层重构**：将 XP3/ZIP/TAR 系统迁移到 Rust，极大提升安全性。
+3. **第四阶段：渲染与输入重写**：在底层逻辑加固后，启动 SDL3 接入。
+
 
 ---
 

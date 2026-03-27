@@ -6,11 +6,11 @@ set(UTILS_SOURCE_FILES
     ${UTILS_PATH}/ClipboardIntf.cpp
     ${UTILS_PATH}/DebugIntf.cpp
     ${UTILS_PATH}/MathAlgorithms_Default.cpp
-    ${UTILS_PATH}/md5.c
+    # md5.c → replaced by Rust krkr2-crypto crate
     ${UTILS_PATH}/MiscUtility.cpp
     ${UTILS_PATH}/PadIntf.cpp
-    ${UTILS_PATH}/Random.cpp
-    ${UTILS_PATH}/RealFFT_Default.cpp
+    # Random.cpp → replaced by Rust krkr2-crypto crate
+    # RealFFT_Default.cpp → replaced by Rust krkr2-fft crate
     ${UTILS_PATH}/ThreadIntf.cpp
     ${UTILS_PATH}/TickCount.cpp
     ${UTILS_PATH}/TimerIntf.cpp
@@ -36,5 +36,9 @@ set(UTILS_HEADERS_DIR
 )
 
 add_library(${PROJECT_NAME} STATIC ${UTILS_SOURCE_FILES})
-target_include_directories(${PROJECT_NAME} PUBLIC ${UTILS_HEADERS_DIR})
-target_link_libraries(${PROJECT_NAME} PUBLIC tjs2 PRIVATE core_base_module)
+target_include_directories(${PROJECT_NAME} PUBLIC
+    ${UTILS_HEADERS_DIR}
+    ${KRKR2_CRYPTO_INCLUDE_DIR}
+    ${KRKR2_FFT_INCLUDE_DIR}
+)
+target_link_libraries(${PROJECT_NAME} PUBLIC tjs2 PRIVATE core_base_module krkr2-crypto krkr2-fft)

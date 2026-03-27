@@ -1,0 +1,13 @@
+[package]
+name = "krkr2-fft"
+version = "0.1.0"
+edition = "2021"
+description = "Real Discrete FFT for KrKr2 engine (replaces RealFFT_Default.cpp)"
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+
+[build-dependencies]
+cbindgen = "0.28"
