@@ -15,7 +15,7 @@ set(BASE_SOURCE_FILES
     ${BASE_PATH}/TextStream.cpp
     ${BASE_PATH}/UtilStreams.cpp
     ${BASE_PATH}/XP3Archive.cpp
-    # ${BASE_PATH}/ZIPArchive.cpp  # TODO: needs minizip-ng API porting
+    ${BASE_PATH}/ZIPArchive.cpp
     ${BASE_PATH}/KAGParser.cpp
     ${BASE_PATH}/MsgIntf.cpp
 )

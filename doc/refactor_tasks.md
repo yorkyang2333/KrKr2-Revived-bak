@@ -77,7 +77,7 @@ KrKr2-Revived/
 | 配置 CMake 使 `backend/core` 可独立编译 | ✅ |
 | 清理旧目录：删除 `cpp/`、`ui/`、旧构建目录和调试日志 | ✅ |
 
-### 第二阶段：使 Core Modules 独立编译 🔄 进行中
+### 第二阶段：使 Core Modules 独立编译 ✅ 已完成
 
 #### 已完成
 
@@ -99,12 +99,11 @@ KrKr2-Revived/
 | 添加 `visual`, `environ`, `sound`, `plugin`, `movie`, `extension` 到包含路径 | ✅ |
 | `base/ScriptMgnIntf.cpp` 独立编译通过 | ✅（通过分别给 `CDDA`, `MIDI`, `Wave`, `MenuItem`, `VideoOvl`, `BasicDrawDevice` 添加跨平台空实现/接口） |
 | 修复 `tjsInterCodeGen.h` UB及 `UtilStreams.cpp` 移位溢出警告 | ✅ |
+| `base/ZIPArchive.cpp` 移植到 minizip-ng 公开 API | ✅（完全重写，去除 2000 行 unzip 内部实现分支，改用 `unzOpen2_64` / `unzGoToFirstFile` / `unzGetFilePos64` 等公开接口） |
 
 #### 暂时排除（TODO）
 
-| 文件 | 原因 | 优先级 |
-|------|------|--------|
-| `base/ZIPArchive.cpp` | 内部重新实现了 minizip 所有数据结构，与 minizip-ng 的 API 存在深层不兼容（`zlib_filefunc64_32_def` 已废弃、`offset_curfile` 改名为 `disk_offset`、函数重载冲突等） | 中 |
+暂无。`core_base_module` 中所有非跨平台源文件均已成功编译。
 
 #### 已知编译 Warning（非致命）
 
@@ -156,11 +155,14 @@ KrKr2-Revived/
 - 用前向声明 `class iWindowLayer;` 替换 `#include "TVPWindow.h"`
 - 添加 `enum tTVPWMRRegMode { wrmRegister = 0, wrmUnregister = 1 };`
 
-### `backend/core/base/ZIPArchive.cpp`
-- 修改 `#include <minizip/unzip.h>` → `#include <unzip.h>`
-- 添加 minizip-ng compat 层（`typedef`, `#define offset_curfile disk_offset` 等）
-- 移除了与 minizip-ng 头文件冲突的 `unz_file_info64_s` 结构体重定义
-- **注意**：由于 API 深层不兼容，该文件已从构建中暂时排除
+### `backend/core/base/ZIPArchive.cpp`（重写）
+- 去除了 2000+ 行的 minizip `unzip.c` 内部实现分支（fork）
+- 改为仅使用 minizip-ng 暴露的公开兼容 API：`unzOpen2_64`, `unzGoToFirstFile`, `unzGoToNextFile`, `unzGetFilePos64`, `unzGoToFilePos64`, `unzGetCurrentFileInfo64`, `unzOpenCurrentFile`, `unzReadCurrentFile`, `unzCloseCurrentFile`
+- 对于 Stored 存储方式的文件，通过读取 local header 的 filename/extra 长度字段直接构造 `TArchiveStream`（零拷贝）
+- 对于压缩文件，通过 `unzOpenCurrentFile` / `unzReadCurrentFile` 解压到 `tTVPMemoryStream`
+
+### `backend/core/base/CMakeLists.txt`（变更）
+- 重新启用了 `ZIPArchive.cpp` 编译（去掉注释）
 
 ### `CMakeLists.txt`（根目录）
 - `KRKR2PLUGIN_PATH` 从 `cpp/plugins` 更新为 `backend/plugins`
@@ -188,9 +190,8 @@ cmake --build out/macos/debug --target core_base_module
 
 ## 六、下一步建议
 
-1. **优先**：移植 `ZIPArchive.cpp` 使用 minizip-ng 的原生 API（`mz_zip.h` / `mz_strm.h`）
-2. **修复编译 Warning**：特别是 `tjsBinarySerializer.h` 中 `ULONG_MAX` 的类型宽度问题
-3. **启动第三阶段**：着手 SDL3/SDL2 渲染后端接入
+1. **修复编译 Warning**：`tjsBinarySerializer.h` 中 `ULONG_MAX` 的类型宽度问题
+2. **启动第三阶段**：着手 SDL3/SDL2 渲染后端接入
 
 ---
 
