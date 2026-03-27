@@ -123,23 +123,46 @@ KrKr2-Revived/
 | Rust 单元测试（6/6 通过） | ✅ |
 | CMake 全量编译验证（tjs2 + core_utils_module + core_base_module） | ✅ |
 
-#### Phase 3b — 编码层 ⬜ 待开始
+#### Phase 3b — 编码层 ✅ 已完成
 
 | 任务 | 状态 |
 |------|------|
-| `krkr2-encoding` crate（encoding_rs 封装） | ⬜ |
-| 替换 `gbk2unicode.c` + `jis2unicode.c`（~880KB） | ⬜ |
+| `krkr2-encoding` crate（encoding_rs 封装） | ✅ |
+| 替换 `CharacterSet.cpp` + `gbk2unicode.c` + `jis2unicode.c`（~889KB） | ✅ |
 
-#### Phase 3c — 存档层 ⬜ 待开始
+#### Phase 3c — cxx bridge 基础设施 ⬜ 待开始
+
+> **策略升级**：剩余模块与 C++ 引擎核心类型耦合较深（`tTJSBinaryStream`、`ttstr`），需要使用 [cxx](https://cxx.rs/) bridge 进行双向绑定，而非 `extern "C"` FFI。
 
 | 任务 | 状态 |
 |------|------|
-| `krkr2-archive` crate（XP3/ZIP/TAR/7z） | ⬜ |
-| 替换 `xp3filter.cpp` | ⬜ |
+| 创建 `krkr2-bridge` crate，声明核心 C++ 类型绑定 | ⬜ |
+| 桥接 `tTJSBinaryStream`（Read/Write/Seek/GetSize） | ⬜ |
+| 桥接 `ttstr` ↔ `rust::String` 互转 | ⬜ |
+| CMake 集成 cxx 生成的 C++ 源文件编译 | ⬜ |
 
-#### Phase 3d — KAG 解析器 ⬜ 待开始
+#### Phase 3d — 图像解码器（via cxx bridge） ⬜ 待开始
 
-#### Phase 3e — 音频 DSP ⬜ 待开始
+| 任务 | 状态 |
+|------|------|
+| `krkr2-image` crate：TLG5/6 解码器 Rust 重写 | ⬜ |
+| 通过 cxx bridge 读取 `tTJSBinaryStream`，回调 scanline | ⬜ |
+| 替换 `LoadTLG.cpp` | ⬜ |
+
+#### Phase 3e — 存档层（via cxx bridge） ⬜ 待开始
+
+| 任务 | 状态 |
+|------|------|
+| `krkr2-archive` crate：XP3 解析 + xp3filter | ⬜ |
+| 通过 cxx bridge 实现 `tTVPArchive` 子类 | ⬜ |
+| 替换 `XP3Archive.cpp` + `xp3filter.cpp` | ⬜ |
+
+#### Phase 3f — 音频缓冲管理（via cxx bridge） ⬜ 待开始
+
+| 任务 | 状态 |
+|------|------|
+| `krkr2-audio` crate：RingBuffer + WaveSegmentQueue | ⬜ |
+| 通过 cxx bridge 实现 `tTVPWaveDecoder` 接口 | ⬜ |
 
 ### 第四阶段：渲染层与输入层重写 ⬜ 待开始
 
@@ -229,9 +252,10 @@ cmake --build out/macos/debug --target core_base_module
 
 ## 六、下一步建议
 
-1. **Phase 3b: 编码层重构**：使用 `encoding_rs` 替代所有手写查表和 iconv 逻辑。
-2. **Phase 3c: 存档层重构**：将 XP3/ZIP/TAR 系统迁移到 Rust，极大提升安全性。
-3. **第四阶段：渲染与输入重写**：在底层逻辑加固后，启动 SDL3 接入。
+1. **Phase 3c: cxx bridge 基础设施**：建立 `krkr2-bridge` crate，为 `tTJSBinaryStream`/`ttstr` 提供 Rust 绑定。
+2. **Phase 3d: TLG 图像解码器**：用 Rust 重写 TLG5/6 解码器（Kirikiri 特有格式，安全收益最大）。
+3. **Phase 3e: XP3 存档层**：用 Rust 重写 XP3 解析 + xp3filter（特有格式 + 密码学）。
+4. **第四阶段：渲染与输入重写**：在底层逻辑加固后，启动 SDL3 接入。
 
 
 ---

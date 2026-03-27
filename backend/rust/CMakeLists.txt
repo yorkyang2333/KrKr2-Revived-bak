@@ -13,3 +13,7 @@ set(KRKR2_CRYPTO_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/krkr2-crypto/include
 # krkr2-fft: Real FFT
 set(KRKR2_FFT_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/krkr2-fft/include
     CACHE PATH "Include path for krkr2-fft C headers")
+
+# krkr2-encoding: Character encoding conversions
+set(KRKR2_ENCODING_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/krkr2-encoding/include
+    CACHE PATH "Include path for krkr2-encoding C headers")

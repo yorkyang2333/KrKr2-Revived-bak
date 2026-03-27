@@ -16,8 +16,8 @@ set(UTILS_SOURCE_FILES
     ${UTILS_PATH}/TimerIntf.cpp
     ${UTILS_PATH}/VelocityTracker.cpp
 
-    ${UTILS_PATH}/encoding/gbk2unicode.c
-    ${UTILS_PATH}/encoding/jis2unicode.c
+    # encoding/gbk2unicode.c → replaced by Rust krkr2-encoding crate
+    # encoding/jis2unicode.c → replaced by Rust krkr2-encoding crate
 
     ${UTILS_PATH}/win32/ClipboardImpl.cpp
     ${UTILS_PATH}/win32/DebugImpl.cpp
@@ -40,5 +40,6 @@ target_include_directories(${PROJECT_NAME} PUBLIC
     ${UTILS_HEADERS_DIR}
     ${KRKR2_CRYPTO_INCLUDE_DIR}
     ${KRKR2_FFT_INCLUDE_DIR}
+    ${KRKR2_ENCODING_INCLUDE_DIR}
 )
-target_link_libraries(${PROJECT_NAME} PUBLIC tjs2 PRIVATE core_base_module krkr2-crypto krkr2-fft)
+target_link_libraries(${PROJECT_NAME} PUBLIC tjs2 PRIVATE core_base_module krkr2-crypto krkr2-fft krkr2-encoding)
