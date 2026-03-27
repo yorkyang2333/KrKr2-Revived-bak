@@ -83,7 +83,7 @@ KrKr2-Revived/
 
 | 任务 | 说明 |
 |------|------|
-| `tjs2` 模块独立编译通过 | ✅ 有若干 Warning（已知，待后续修复） |
+| `tjs2` 模块独立编译通过 | ✅ 无 Warning |
 | `core_utils_module` 独立编译通过 | ✅ |
 | `core_base_module` 独立编译通过 | ✅（部分文件暂时排除，见下） |
 | 将 `LayerImpl.h/cpp` 迁移到 `core/visual/` | ✅ |
@@ -107,7 +107,7 @@ KrKr2-Revived/
 
 #### 已知编译 Warning（非致命）
 
-- `tjs2/tjsBinarySerializer.h` — `ULONG_MAX` 与 `tjs_uint` 的永真比较（类型宽度问题）
+- `tjs2/tjsBinarySerializer.h` — `ULONG_MAX` 与 `tjs_uint` 的永真比较 ✅ 已修复（改为 `UINT32_MAX`）
 
 ### 第三阶段：渲染层与输入层重写 ⬜ 待开始
 
@@ -190,8 +190,7 @@ cmake --build out/macos/debug --target core_base_module
 
 ## 六、下一步建议
 
-1. **修复编译 Warning**：`tjsBinarySerializer.h` 中 `ULONG_MAX` 的类型宽度问题
-2. **启动第三阶段**：着手 SDL3/SDL2 渲染后端接入
+1. **启动第三阶段**：着手 SDL3/SDL2 渲染后端接入
 
 ---
 
