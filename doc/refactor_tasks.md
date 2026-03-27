@@ -96,20 +96,19 @@ KrKr2-Revived/
 | 添加 `minizip-ng` 到 `vcpkg.json` 并配置 CMake | ✅ |
 | 修复 `WindowImpl.h` 中对 `TVPWindow.h`（win32）的依赖 | ✅ |
 | 通过前向声明 + 枚举定义解决 `tTVPWMRRegMode` 问题 | ✅ |
-| 添加 `visual`, `environ`, `sound` 到包含路径 | ✅ |
+| 添加 `visual`, `environ`, `sound`, `plugin`, `movie`, `extension` 到包含路径 | ✅ |
+| `base/ScriptMgnIntf.cpp` 独立编译通过 | ✅（通过分别给 `CDDA`, `MIDI`, `Wave`, `MenuItem`, `VideoOvl`, `BasicDrawDevice` 添加跨平台空实现/接口） |
+| 修复 `tjsInterCodeGen.h` UB及 `UtilStreams.cpp` 移位溢出警告 | ✅ |
 
 #### 暂时排除（TODO）
 
 | 文件 | 原因 | 优先级 |
 |------|------|--------|
 | `base/ZIPArchive.cpp` | 内部重新实现了 minizip 所有数据结构，与 minizip-ng 的 API 存在深层不兼容（`zlib_filefunc64_32_def` 已废弃、`offset_curfile` 改名为 `disk_offset`、函数重载冲突等） | 中 |
-| `base/ScriptMgnIntf.cpp` | 依赖 `CDDAImpl.h`（位于 `platform/win32/`，是 Win32 CD-DA 音频的平台实现） | 中 |
 
 #### 已知编译 Warning（非致命）
 
-- `tjs2/tjsInterCodeGen.h:213` — 解引空指针绑定到引用（原始代码遗留）
 - `tjs2/tjsBinarySerializer.h` — `ULONG_MAX` 与 `tjs_uint` 的永真比较（类型宽度问题）
-- `base/UtilStreams.cpp:811` — `UnpSizeHigh << 32` 移位溢出（Win32 只有 32 位 `DWORD`）
 
 ### 第三阶段：渲染层与输入层重写 ⬜ 待开始
 
@@ -140,9 +139,14 @@ KrKr2-Revived/
 
 ### `backend/core/base/CMakeLists.txt`
 - 移除了 `impl/` 下所有平台实现文件
-- 暂时注释了 `ZIPArchive.cpp` 和 `ScriptMgnIntf.cpp`
+- 暂时注释了 `ZIPArchive.cpp`
+- 重新启用了 `ScriptMgnIntf.cpp` 的编译
 - 添加了 `minizip-ng` 的 `find_package` + `target_link_libraries`
-- 添加了 `../visual`, `../environ`, `../sound` 的头文件包含路径
+- 添加了 `../visual`, `../environ`, `../sound`, `../plugin`, `../movie`, `../extension` 的头文件包含路径
+
+### `backend/core/` 下的空实现解耦（新增）
+- 新增 `sound/CDDAImpl.h`, `sound/MIDIImpl.h`, `sound/WaveImpl.h` 空实现
+- 新增 `visual/VideoOvlImpl.h`, `visual/MenuItemImpl.h`, `visual/BasicDrawDevice.h` 空实现（剥离原 win32/legacy_cocos2d 平台特有依赖）
 
 ### `backend/core/utils/CMakeLists.txt`
 - 添加了 `../visual`, `../environ` 的头文件包含路径
@@ -185,9 +189,8 @@ cmake --build out/macos/debug --target core_base_module
 ## 六、下一步建议
 
 1. **优先**：移植 `ZIPArchive.cpp` 使用 minizip-ng 的原生 API（`mz_zip.h` / `mz_strm.h`）
-2. **随后**：解决 `ScriptMgnIntf.cpp` 的 `CDDAImpl.h` 平台依赖——可以用空实现或 SDL 音频替换
-3. **修复编译 Warning**：特别是 `tjsBinarySerializer.h` 中 `ULONG_MAX` 的类型宽度问题
-4. **启动第三阶段**：着手 SDL3/SDL2 渲染后端接入
+2. **修复编译 Warning**：特别是 `tjsBinarySerializer.h` 中 `ULONG_MAX` 的类型宽度问题
+3. **启动第三阶段**：着手 SDL3/SDL2 渲染后端接入
 
 ---
 
@@ -198,4 +201,3 @@ cmake --build out/macos/debug --target core_base_module
 | 大量 Win32 API 调用 | `platform/environ_legacy/win32/` | 原始代码强依赖 Windows |
 | `lseek64` 等 POSIX 扩展调用 | `base/impl/StorageImpl.cpp` | 需要跨平台替换 |
 | Live2D OpenGL ES2/ANGLE 问题 | `platform/legacy_cocos2d/` | 见独立 issue |
-| `tjs2` 中空指针解引 Warning | `tjsInterCodeGen.h:213` | 历史遗留，有 UB 风险 |

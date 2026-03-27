@@ -7,7 +7,7 @@ set(BASE_SOURCE_FILES
     ${BASE_PATH}/BinaryStream.cpp
     ${BASE_PATH}/CharacterSet.cpp
     ${BASE_PATH}/EventIntf.cpp
-    # ${BASE_PATH}/ScriptMgnIntf.cpp  # TODO: needs CDDAImpl.h porting
+    ${BASE_PATH}/ScriptMgnIntf.cpp
     ${BASE_PATH}/StorageIntf.cpp
     ${BASE_PATH}/SysInitIntf.cpp
     ${BASE_PATH}/SystemIntf.cpp
@@ -26,6 +26,9 @@ set(BASE_HEADERS_DIR
         ${BASE_PATH}/../visual
         ${BASE_PATH}/../environ
         ${BASE_PATH}/../sound
+        ${BASE_PATH}/../plugin
+        ${BASE_PATH}/../movie
+        ${BASE_PATH}/../extension
 )
 
 add_library(${PROJECT_NAME} STATIC ${BASE_SOURCE_FILES})

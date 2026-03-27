@@ -210,7 +210,7 @@ namespace TJS {
 
         tTJSVariant &GetValue() {
             if(!Val)
-                return *(tTJSVariant *)nullptr;
+                Val = new tTJSVariant();
             return *Val;
         }
 
