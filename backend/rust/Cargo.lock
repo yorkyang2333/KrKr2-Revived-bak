@@ -395,6 +395,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "krkr2-image"
+version = "0.1.0"
+dependencies = [
+ "cxx",
+ "cxx-build",
+]
+
+[[package]]
 name = "leb128fmt"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

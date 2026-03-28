@@ -68,3 +68,22 @@ target_link_libraries(krkr2_bridge_glue PUBLIC tjs2)
 
 # Link the Rust static lib so downstream targets get both
 target_link_libraries(krkr2_bridge_glue PUBLIC krkr2-bridge)
+
+# ---------------------------------------------------------------------------
+# krkr2_image_adapter: C++ adapter for the Rust TLG decoder
+# ---------------------------------------------------------------------------
+add_library(krkr2_image_adapter STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/krkr2-image/src/krkr2_image_adapter.cpp
+)
+
+target_include_directories(krkr2_image_adapter PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/krkr2-image/include
+)
+
+target_include_directories(krkr2_image_adapter PUBLIC
+    ${KRKR2_CARGO_TARGET_DIR}/cxxbridge
+)
+
+target_link_libraries(krkr2_image_adapter PUBLIC tjs2)
+target_link_libraries(krkr2_image_adapter PUBLIC krkr2-image)
+

@@ -1,0 +1,14 @@
+[package]
+name = "krkr2-image"
+version = "0.1.0"
+edition = "2021"
+description = "TLG5/6 image decoder for KrKr2 engine (replaces LoadTLG.cpp)"
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+cxx = "1.0"
+
+[build-dependencies]
+cxx-build = "1.0"

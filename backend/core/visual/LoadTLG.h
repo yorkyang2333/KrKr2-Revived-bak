@@ -7,17 +7,22 @@
         See details of license at "license.txt"
 */
 //---------------------------------------------------------------------------
-// TLG5/6 decoder
+// TLG5/6 decoder — now implemented in Rust (krkr2-image crate)
 //---------------------------------------------------------------------------
 
 #ifndef LoadTLGH
 #define LoadTLGH
 
-extern void TVPLoadTLG(void *formatdata, void *callbackdata,
-                       tTVPGraphicSizeCallback sizecallback,
-                       tTVPGraphicScanLineCallback scanlinecallback,
-                       tTVPMetaInfoPushCallback metainfopushcallback,
-                       tTJSBinaryStream *src, tjs_int keyidx,
-                       tTVPGraphicLoadMode mode);
+// Rust-based TLG decoder (replaces the original C++ TVPLoadTLG)
+extern "C" void TVPLoadTLG_Rust(
+    void *formatdata, void *callbackdata,
+    tTVPGraphicSizeCallback sizecallback,
+    tTVPGraphicScanLineCallback scanlinecallback,
+    tTVPMetaInfoPushCallback metainfopushcallback,
+    tTJSBinaryStream *src, tjs_int keyidx,
+    tTVPGraphicLoadMode mode);
+
+// Alias for backward compatibility
+#define TVPLoadTLG TVPLoadTLG_Rust
 
 #endif

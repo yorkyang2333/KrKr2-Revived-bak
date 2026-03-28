@@ -141,13 +141,15 @@ KrKr2-Revived/
 | 桥接 `ttstr` ↔ `rust::String` 互转 | ⏭ 延后到 Phase 3d/3e 按需实现 |
 | CMake 集成 cxx 生成的 C++ 源文件编译 | ✅（`krkr2_bridge_glue` 静态库） |
 
-#### Phase 3d — 图像解码器（via cxx bridge） ⬜ 待开始
+#### Phase 3d — 图像解码器（via cxx bridge） ✅ 已完成
 
 | 任务 | 状态 |
 |------|------|
-| `krkr2-image` crate：TLG5/6 解码器 Rust 重写 | ⬜ |
-| 通过 cxx bridge 读取 `tTJSBinaryStream`，回调 scanline | ⬜ |
-| 替换 `LoadTLG.cpp` | ⬜ |
+| `krkr2-image` crate：TLG5/6 解码器 Rust 重写 | ✅（LZSS + Golomb + 16 chroma filters + MED/AVG） |
+| 通过 cxx bridge 读取 `tTJSBinaryStream`，回调 scanline | ✅（`krkr2_image_adapter` C++ 适配器） |
+| 替换 `LoadTLG.cpp` → `LoadTLGHeader.cpp` + Rust decoder | ✅ |
+| TLG0.0 SDS metadata tag 解析 | ✅ |
+| 单元测试（7/7 passed） | ✅ |
 
 #### Phase 3e — 存档层（via cxx bridge） ⬜ 待开始
 
@@ -241,6 +243,14 @@ KrKr2-Revived/
 - `backend/rust/CMakeLists.txt` 新增 `krkr2_bridge_glue` 静态库目标
 - cxx 生成的桥接头文件位于 `target/cxxbridge/` 目录
 
+### TLG 图像解码器 Rust 重写（2026-03-28）
+- 新增 `backend/rust/krkr2-image/` crate，完整重写 TLG5/6 解码器
+- 纯 Rust 实现：LZSS 滑动窗口解压、Golomb-Rice 熵编码、16 种 chroma 相关滤镜、MED/AVG 像素预测
+- `krkr2_image_adapter.h/cpp`：C++ 适配器，实现 `TVPLoadTLG_Rust()`
+- `LoadTLG.cpp` 中的解码逻辑已被 Rust 替代，仅保留 `TVPLoadHeaderTLG`（提取到 `LoadTLGHeader.cpp`）
+- `LoadTLG.h` 通过 `#define TVPLoadTLG TVPLoadTLG_Rust` 保持向后兼容
+- 7 个 Rust 单元测试全部通过（LZSS、Golomb 表、MED/AVG 预测器）
+
 
 ---
 
@@ -258,8 +268,8 @@ cmake --build out/macos/debug --target core_base_module
 
 ## 六、下一步建议
 
-1. **Phase 3c: cxx bridge 基础设施**：建立 `krkr2-bridge` crate，为 `tTJSBinaryStream`/`ttstr` 提供 Rust 绑定。
-2. **Phase 3d: TLG 图像解码器**：用 Rust 重写 TLG5/6 解码器（Kirikiri 特有格式，安全收益最大）。
+1. ~~**Phase 3c: cxx bridge 基础设施**~~：✅ 已完成。
+2. ~~**Phase 3d: TLG 图像解码器**~~：✅ 已完成。
 3. **Phase 3e: XP3 存档层**：用 Rust 重写 XP3 解析 + xp3filter（特有格式 + 密码学）。
 4. **第四阶段：渲染与输入重写**：在底层逻辑加固后，启动 SDL3 接入。
 
