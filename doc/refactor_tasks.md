@@ -1,6 +1,6 @@
 # KrKr2-Revived 重构进度文档
 
-> 最后更新：2026-03-22
+> 最后更新：2026-03-28
 
 ---
 
@@ -130,16 +130,16 @@ KrKr2-Revived/
 | `krkr2-encoding` crate（encoding_rs 封装） | ✅ |
 | 替换 `CharacterSet.cpp` + `gbk2unicode.c` + `jis2unicode.c`（~889KB） | ✅ |
 
-#### Phase 3c — cxx bridge 基础设施 ⬜ 待开始
+#### Phase 3c — cxx bridge 基础设施 ✅ 已完成
 
 > **策略升级**：剩余模块与 C++ 引擎核心类型耦合较深（`tTJSBinaryStream`、`ttstr`），需要使用 [cxx](https://cxx.rs/) bridge 进行双向绑定，而非 `extern "C"` FFI。
 
 | 任务 | 状态 |
 |------|------|
-| 创建 `krkr2-bridge` crate，声明核心 C++ 类型绑定 | ⬜ |
-| 桥接 `tTJSBinaryStream`（Read/Write/Seek/GetSize） | ⬜ |
-| 桥接 `ttstr` ↔ `rust::String` 互转 | ⬜ |
-| CMake 集成 cxx 生成的 C++ 源文件编译 | ⬜ |
+| 创建 `krkr2-bridge` crate，声明核心 C++ 类型绑定 | ✅ |
+| 桥接 `tTJSBinaryStream`（Read/Write/Seek/GetSize） | ✅（通过 `BinaryStreamWrapper` C++ glue 转发虚函数调用） |
+| 桥接 `ttstr` ↔ `rust::String` 互转 | ⏭ 延后到 Phase 3d/3e 按需实现 |
+| CMake 集成 cxx 生成的 C++ 源文件编译 | ✅（`krkr2_bridge_glue` 静态库） |
 
 #### Phase 3d — 图像解码器（via cxx bridge） ⬜ 待开始
 
@@ -234,6 +234,12 @@ KrKr2-Revived/
 - `CMakeLists.txt` 集成 Corrosion，支持 CMake ↔ Cargo 联编
 - `.gitignore` 排除 `target/` 和生成的 C 头文件
 - **试点替换**：`md5.c`, `Random.cpp`, `RealFFT_Default.cpp` 已彻底从 utils 模块中移除，改为链接 Rust 静态库
+
+### CXX Bridge 基础设施（2026-03-28）
+- 新增 `backend/rust/krkr2-bridge/` crate，使用 [cxx](https://cxx.rs/) 进行 Rust ↔ C++ 双向绑定
+- `krkr2_bridge_glue.h/cpp`：`BinaryStreamWrapper` C++ glue 类，持有 `tTJSBinaryStream*` 并转发虚函数调用
+- `backend/rust/CMakeLists.txt` 新增 `krkr2_bridge_glue` 静态库目标
+- cxx 生成的桥接头文件位于 `target/cxxbridge/` 目录
 
 
 ---

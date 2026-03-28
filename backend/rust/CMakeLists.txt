@@ -17,3 +17,54 @@ set(KRKR2_FFT_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/krkr2-fft/include
 # krkr2-encoding: Character encoding conversions
 set(KRKR2_ENCODING_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/krkr2-encoding/include
     CACHE PATH "Include path for krkr2-encoding C headers")
+
+# krkr2-bridge: CXX bridge include path (for krkr2_bridge_glue.h)
+set(KRKR2_BRIDGE_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/krkr2-bridge/include
+    CACHE PATH "Include path for krkr2-bridge C++ headers")
+
+# ---------------------------------------------------------------------------
+# krkr2_bridge_glue: C++ glue library for the cxx bridge
+# ---------------------------------------------------------------------------
+# This static library compiles the C++ wrapper (BinaryStreamWrapper) that
+# forwards cxx bridge calls to tTJSBinaryStream virtual methods.
+#
+# It needs:
+#   1. The krkr2_bridge_glue.h header (our include/ dir)
+#   2. The cxx-generated headers (rust/cxx.h and the bridge .rs.h)
+#   3. The tjs2 headers (for tTJSBinaryStream definition)
+
+add_library(krkr2_bridge_glue STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/krkr2-bridge/src/krkr2_bridge_glue.cpp
+)
+
+# Our own include dir (krkr2_bridge_glue.h)
+target_include_directories(krkr2_bridge_glue PUBLIC
+    ${KRKR2_BRIDGE_INCLUDE_DIR}
+)
+
+# cxx-generated headers: rust/cxx.h lives in the cxx crate's OUT_DIR.
+# The generated bridge header (.rs.h) lives in the cargo target dir.
+# Corrosion sets these up when we query the crate's properties.
+#
+# We find rust/cxx.h from the cxx crate downloaded by cargo.
+# The standard location after cargo build is:
+#   target/<profile>/build/cxx-<hash>/out/
+# However, a more reliable approach is to use the cxxbridge-cmd header
+# or the cxx crate's include directory.
+#
+# For now, we add the target directory's cxxbridge output as include path.
+set(KRKR2_CARGO_TARGET_DIR ${CMAKE_CURRENT_SOURCE_DIR}/target)
+
+# The cxx crate's include directory (rust/cxx.h)
+# After `cargo build`, cxx generates headers in:
+#   target/cxxbridge/rust/cxx.h
+#   target/cxxbridge/krkr2-bridge/src/lib.rs.h
+target_include_directories(krkr2_bridge_glue PUBLIC
+    ${KRKR2_CARGO_TARGET_DIR}/cxxbridge
+)
+
+# tjs2 headers (tTJSBinaryStream is defined in tjs.h)
+target_link_libraries(krkr2_bridge_glue PUBLIC tjs2)
+
+# Link the Rust static lib so downstream targets get both
+target_link_libraries(krkr2_bridge_glue PUBLIC krkr2-bridge)
