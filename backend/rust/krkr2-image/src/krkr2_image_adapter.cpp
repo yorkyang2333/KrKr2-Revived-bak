@@ -62,10 +62,10 @@ std::unique_ptr<BinaryStreamWrapper> make_stream_wrapper(size_t raw_ptr) {
 } // namespace krkr2
 
 // =========================================================================
-// TVPLoadTLG_Rust — drop-in replacement for TVPLoadTLG
+// TVPLoadTLG — drop-in replacement for old C++ TLG decoder
 // =========================================================================
 
-extern "C" void TVPLoadTLG_Rust(
+void TVPLoadTLG(
     void *formatdata,
     void *callbackdata,
     tTVPGraphicSizeCallback sizecallback,

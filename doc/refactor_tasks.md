@@ -246,9 +246,8 @@ KrKr2-Revived/
 ### TLG 图像解码器 Rust 重写（2026-03-28）
 - 新增 `backend/rust/krkr2-image/` crate，完整重写 TLG5/6 解码器
 - 纯 Rust 实现：LZSS 滑动窗口解压、Golomb-Rice 熵编码、16 种 chroma 相关滤镜、MED/AVG 像素预测
-- `krkr2_image_adapter.h/cpp`：C++ 适配器，实现 `TVPLoadTLG_Rust()`
-- `LoadTLG.cpp` 中的解码逻辑已被 Rust 替代，仅保留 `TVPLoadHeaderTLG`（提取到 `LoadTLGHeader.cpp`）
-- `LoadTLG.h` 通过 `#define TVPLoadTLG TVPLoadTLG_Rust` 保持向后兼容
+- `krkr2_image_adapter.h/cpp`：C++ 适配器，直接实现 C 接口的 `TVPLoadTLG()`
+- 原有 `LoadTLG.cpp` 和 `LoadTLG.h` 已被彻底删除，原有的 header 读取逻辑单独提取到了 `LoadTLGHeader.cpp`
 - 7 个 Rust 单元测试全部通过（LZSS、Golomb 表、MED/AVG 预测器）
 
 
