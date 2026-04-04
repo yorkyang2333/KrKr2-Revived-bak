@@ -192,8 +192,8 @@ KrKr2-Revived/
 | 引擎核心编译消除无头模式下的依赖错误 | ✅ |
 | `flutter create` 初始化 `frontend/` 工程 | ✅ |
 | Dart FFI 绑定 C-API | ✅ |
-| 实现 Flutter Texture 渲染（Metal/GL/Vulkan 共享纹理） | ⬜ |
-| 用 Flutter 重写主菜单、控制台、文件选择器 | ⬜ |
+| 实现 Flutter Texture 渲染（Metal/GL/Vulkan 共享纹理） | ✅ |
+| 用 Flutter 重写主菜单、控制台、文件选择器 | ✅ |
 | GitHub Actions CI/CD 全平台自动编译打包 | ⬜ |
 
 ---
