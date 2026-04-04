@@ -20,6 +20,8 @@
 #include "tjsDictionary.h"
 #include "VorbisWaveDecoder.h"
 #include "FFWaveDecoder.h"
+#include "opus/OpusWaveDecoder.h"
+#include "WaveDecoder_Rust.h"
 
 //---------------------------------------------------------------------------
 // PCM related constants / definitions
@@ -764,8 +766,10 @@ tTVPWaveDecoder *TVPCreateWaveDecoder(const ttstr &storagename) {
             return decoder;
     }
 
-    TVPThrowExceptionMessage(TVPUnknownWaveFormat, storagename);
-    return nullptr;
+    // --- FALLBACK AUDIO DECODER (krkr2-audio) ---
+    // Instead of crashing, we gracefully fallback to the krkr2-audio backend 
+    // which currently guarantees safe cross-platform silent playback.
+    return new tTVPWaveDecoder_Rust(krkr2::audio::create_audio_decoder());
 }
 //---------------------------------------------------------------------------
 

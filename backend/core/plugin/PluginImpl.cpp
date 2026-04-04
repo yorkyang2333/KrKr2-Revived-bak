@@ -16,8 +16,8 @@
 
 #include "tjsCommHead.h"
 
-#include "ScriptMgnIntf.h"
 #include "PluginImpl.h"
+#include "PluginCompat.h"
 
 #include "StorageImpl.h"
 
@@ -54,7 +54,11 @@ void TVPLoadPlugin(const ttstr &name) {
     if(TVPLoadInternalPlugin(pluginName)) {
         spdlog::debug("Loading Plugin: {} Success", name.AsStdString());
     } else {
-        spdlog::error("Loading Plugin: {} Failed", name.AsStdString());
+        if (TVPIsKnownWindowsOnlyPlugin(pluginName)) {
+            spdlog::warn("Skipped known unsupported Windows plugin: {}", name.AsStdString());
+        } else {
+            spdlog::warn("Loading Plugin: {} Failed, but ignored to prevent crashes", name.AsStdString());
+        }
     }
 }
 

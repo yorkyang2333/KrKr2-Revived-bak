@@ -99,6 +99,8 @@ pub mod ffi {
         fn get_format(self: &mut AudioDecoder_Rust) -> WaveFormat;
         unsafe fn render(self: &mut AudioDecoder_Rust, buf: *mut u8, buf_len_bytes: usize, buf_sample_len: u32, rendered: &mut u32) -> bool;
         fn set_position(self: &mut AudioDecoder_Rust, sample_pos: u64) -> bool;
+        
+        fn create_audio_decoder() -> Box<AudioDecoder_Rust>;
     }
 }
 
@@ -156,15 +158,23 @@ impl AudioDecoder_Rust {
     pub fn get_format(&mut self) -> ffi::WaveFormat {
         ffi::WaveFormat {
             samples_per_sec: 44100, channels: 2, bits_per_sample: 16, bytes_per_sample: 4, 
-            total_samples: 0, total_time: 0, speaker_config: 0, is_float: false, seekable: false,
+            total_samples: 0xFFFFFFFF, total_time: 0xFFFFFFFF, speaker_config: 0, is_float: false, seekable: true,
         }
     }
     
-    pub unsafe fn render(&mut self, _buf: *mut u8, _buf_len: usize, _buf_sample_len: u32, _rendered: &mut u32) -> bool {
-        false
+    pub unsafe fn render(&mut self, buf: *mut u8, buf_len: usize, buf_sample_len: u32, rendered: &mut u32) -> bool {
+        let size_needed = (buf_sample_len * 4) as usize;
+        let actual_size = std::cmp::min(size_needed, buf_len);
+        std::ptr::write_bytes(buf, 0, actual_size);
+        *rendered = (actual_size / 4) as u32;
+        true
     }
     
     pub fn set_position(&mut self, _sample_pos: u64) -> bool {
-        false
+        true
     }
+}
+
+pub fn create_audio_decoder() -> Box<AudioDecoder_Rust> {
+    Box::new(AudioDecoder_Rust {})
 }

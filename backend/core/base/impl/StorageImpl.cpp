@@ -458,6 +458,66 @@ void TVPPreNormalizeStorageName(ttstr &name) {
 //---------------------------------------------------------------------------
 static tjs_int TVPProcessID;
 
+static void TVPClearAutoPathCache() {
+    TVPAutoPathCache.Clear();
+    TVPAutoPathTable.Clear();
+    AutoPathTableInit = false;
+}
+
+//---------------------------------------------------------------------------
+TJS_EXP_FUNC_DEF(void, TVPAutoMountArchives, (const ttstr &projectDir)) {
+    ttstr folder = projectDir;
+    
+    // If projectDir is an archive, extract its parent directory
+    ttstr ext = TVPExtractStorageExt(projectDir);
+    if (!ext.IsEmpty()) {
+        std::string s_ext = ext.AsStdString();
+        std::transform(s_ext.begin(), s_ext.end(), s_ext.begin(), ::tolower);
+        if (s_ext == ".xp3" || s_ext == ".exe") {
+            folder = TVPExtractStoragePath(projectDir);
+        }
+    }
+
+    std::string nativeFolder = folder.AsStdString();
+    if (nativeFolder.empty()) return;
+
+    std::vector<std::string> archives;
+    TVPListDir(nativeFolder, [&](const std::string &filename, int mask) {
+        if (mask & S_IFREG) {
+            size_t dotPos = filename.find_last_of('.');
+            if (dotPos != std::string::npos) {
+                std::string ext = filename.substr(dotPos + 1);
+                std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+                if (ext == "xp3") {
+                    archives.push_back(filename);
+                }
+            }
+        }
+    });
+
+    if (archives.empty()) return;
+
+    // sort archives
+    // priority: data.xp3 < patch.xp3 < patch2.xp3 ...
+    std::sort(archives.begin(), archives.end(), [](const std::string& a, const std::string& b) {
+        std::string lower_a = a;
+        std::transform(lower_a.begin(), lower_a.end(), lower_a.begin(), ::tolower);
+        std::string lower_b = b;
+        std::transform(lower_b.begin(), lower_b.end(), lower_b.begin(), ::tolower);
+        
+        bool a_is_data = (lower_a == "data.xp3");
+        bool b_is_data = (lower_b == "data.xp3");
+        if (a_is_data != b_is_data) return a_is_data; // data.xp3 comes first (lowest priority for TVPAddAutoPath)
+        
+        return lower_a < lower_b; // Alphabetical for patches, so patch.xp3 < patch2.xp3 < patch3.xp3
+    });
+
+    for (const auto& arc : archives) {
+        ttstr arcPath = folder + arc.c_str() + TJS_W(">");
+        TVPAddAutoPath(arcPath);
+    }
+}
+
 ttstr TVPGetTemporaryName() {
     static tjs_int TVPTempUniqueNum =
         static_cast<tjs_int>(TVPGetRoughTickCount32());

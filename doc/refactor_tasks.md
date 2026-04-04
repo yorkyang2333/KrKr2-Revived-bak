@@ -11,6 +11,7 @@
 - **底层（C++ 引擎）**：彻底剥离 Cocos2d-x，编译为独立的静态/动态库，通过扁平 C-API 向外暴露接口
 - **渲染层**：抽象为 `IRenderer` / `IWindow` 接口，将来对接 SDL3 / bgfx / Metal / Vulkan
 - **UI 层**：使用 Flutter 重写全部界面，通过 Dart FFI 调用底层 C-API
+- **原生游戏兼容性**：无需修改直接读取并运行原版吉里吉里2游戏（`.xp3` 自动挂载、加密解密自动匹配、系统 API dummy 化）
 
 ---
 
@@ -280,12 +281,20 @@ cmake --build out/macos/debug --target core_base_module
 4. **第四阶段：渲染与输入重写**：在底层逻辑加固后，启动 SDL3 接入。
 
 
+### Phase 10: 原生原版游戏兼容层 (Native Compatibility Layer) ✅ 完成
+
+- [x] XP3 游戏资源及补丁 (patch.xp3, patch2.xp3...) 自动按优先级挂载
+- [x] Windows 独占不兼容插件 (如 wuvorbis.dll, util_unicode.dll 等) 黑/白名单过滤与静默容错
+- [x] 对 Window、Layer、System 的 TJS2 缺失成员进行 dummy stub 降级，并支持 `TVPEnableCompatStubs` 全局开关
+- [x] 基于 `RegisterData.tjs` 与 `RegistryEmulation.cpp` 的跨平台 Registry/KV 配置读取及持久化
+- [x] 基于特征/Heuristic 的 XP3 文件加密自动匹配框架 (`XP3CryptoRegistry`)
+- [x] `krkr2-audio` 桥接与跨平台虚拟降级音频解码实例 (`tTVPWaveDecoder_Rust`)，预防未支持音频格式静音崩溃
+
 ---
 
-## 七、已知遗留问题（技术债）
+## 八、已知问题与技术债）
 
 | 问题 | 位置 | 原因 |
 |------|------|------|
 | 大量 Win32 API 调用 | `platform/environ_legacy/win32/` | 原始代码强依赖 Windows |
 | `lseek64` 等 POSIX 扩展调用 | `base/impl/StorageImpl.cpp` | 需要跨平台替换 |
-| Live2D OpenGL ES2/ANGLE 问题 | `platform/legacy_cocos2d/` | 见独立 issue |

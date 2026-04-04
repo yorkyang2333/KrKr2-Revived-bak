@@ -85,6 +85,7 @@ target_sources(${PROJECT_NAME} PRIVATE
     tjsInterCodeExec.cpp
     tjsVariantString.cpp
     tjsScriptBlock.cpp
+    CompatStubs.cpp
     tjsMath.cpp
     tjs.cpp
     tjsMessage.cpp
