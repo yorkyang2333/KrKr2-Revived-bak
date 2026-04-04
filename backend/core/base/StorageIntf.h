@@ -266,6 +266,9 @@ TJS_EXP_FUNC_DEF(void, TVPAddAutoPath, (const ttstr &name));
 TJS_EXP_FUNC_DEF(void, TVPRemoveAutoPath, (const ttstr &name));
 // remove given path from auto search path
 
+TJS_EXP_FUNC_DEF(void, TVPAutoMountArchives, (const ttstr &projectDir));
+// automatically scans projectDir for .xp3 files and auto-mounts them based on priority
+
 TJS_EXP_FUNC_DEF(ttstr, TVPGetPlacedPath, (const ttstr &name));
 // search path and return the path which the "name" is placed.
 

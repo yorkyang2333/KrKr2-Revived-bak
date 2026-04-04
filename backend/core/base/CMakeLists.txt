@@ -14,6 +14,7 @@ set(BASE_SOURCE_FILES
     ${BASE_PATH}/TARArchive.cpp
     ${BASE_PATH}/TextStream.cpp
     ${BASE_PATH}/UtilStreams.cpp
+    ${BASE_PATH}/XP3CryptoRegistry.cpp
     # XP3Archive.cpp → replaced by Rust krkr2-archive crate & krkr2_archive_adapter
     ${BASE_PATH}/ZIPArchive.cpp
     ${BASE_PATH}/KAGParser.cpp

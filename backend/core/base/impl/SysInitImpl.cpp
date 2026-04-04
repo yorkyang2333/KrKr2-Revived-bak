@@ -28,6 +28,7 @@
 #include "Random.h"
 #include "DetectCPU.h"
 #include "ScriptMgnIntf.h"
+#include "XP3CryptoRegistry.h"
 
 #include "BinaryStream.h"
 #include "Application.h"
@@ -157,11 +158,17 @@ void TVPBeforeSystemInit() {
     if(TVPGetCommandLine(TJS_W("-arcdelim"), &v))
         TVPArchiveDelimiter = ttstr(v)[0];
 
+    TVPAutoMountArchives(TVPProjectDir);
+
+    // Initialize XP3 Encryption Registry Filter
+    TVPInitXP3CryptoRegistry();
+
     if(TVPIsExistentStorageNoSearchNoNormalize(TVPProjectDir)) {
         TVPProjectDir += TVPArchiveDelimiter;
     } else {
         TVPProjectDir += TJS_W("/");
     }
+
     TVPSetCurrentDirectory(TVPProjectDir);
     // randomize
     TVPInitRandomGenerator();

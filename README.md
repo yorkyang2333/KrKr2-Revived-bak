@@ -10,6 +10,7 @@ This project is heavily refactoring legacy C++ code into cross-platform C++17 an
 - **Encoding**: Replaced with Rust `krkr2-encoding`.
 - **Image Decoding**: TLG5/6 original C++ code removed, rewritten in Rust `krkr2-image` with high-quality decompression and prediction.
 - **Virtual File System (XP3)**: Entirely rewritten using Rust `krkr2-archive`, natively supporting `flate2`/zlib accelerated decompression and segment caching.
+- **Native Game Compatibility**: Run raw packed `.xp3` games unmodified with heuristic encryption matching and automatic TJS stubbing.
 - **Miscellaneous**: MD5, Random, RealFFT and other utilities have also been rewritten in Rust.
 
 This repository is currently undergoing a **full architectural refactor** — decoupling the engine from Cocos2d-x, rebuilding core modules in modern C++, and replacing the UI layer with Flutter. Licensed under **GNU General Public License v3.0**.

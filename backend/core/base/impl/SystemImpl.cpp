@@ -13,13 +13,13 @@
 // #include <shellapi.h>
 // #include <shlobj.h>
 
-#include "GraphicsLoaderImpl.h"
-
+#include "SystemControl.h"
 #include "SystemImpl.h"
+#include "WaveIntf.h"
 #include "SystemIntf.h"
+#include "EventIntf.h"
 #include "SysInitIntf.h"
-#include "StorageIntf.h"
-#include "StorageImpl.h"
+#include "RegistryEmulation.h"
 #include "TickCount.h"
 #include "ComplexRect.h"
 #include "WindowImpl.h"
@@ -137,6 +137,11 @@ static void TVPReadRegValue(tTJSVariant &result, const ttstr &key) {
     // check whether the key contains root key name
     // HKEY root = HKEY_CURRENT_USER;
     const tjs_char *key_p = key.c_str();
+
+    // Check custom registry emulation first
+    if (TVPReadRegistryKV(result, key)) {
+        return;
+    }
 
     InitRegisterData();
     // search value name
@@ -797,6 +802,19 @@ tTJSNativeClass *TVPCreateNativeClass_System() {
     TJS_END_NATIVE_STATIC_METHOD_DECL_OUTER(
         /*object to register*/ cls,
         /*func. name*/ readRegValue)
+    //----------------------------------------------------------------------
+    TJS_BEGIN_NATIVE_METHOD_DECL(/*func. name*/ writeRegValue) {
+        if(numparams < 2)
+            return TJS_E_BADPARAMCOUNT;
+
+        ttstr key = *param[0];
+        TVPWriteRegistryKV(key, *param[1]);
+
+        return TJS_S_OK;
+    }
+    TJS_END_NATIVE_STATIC_METHOD_DECL_OUTER(
+        /*object to register*/ cls,
+        /*func. name*/ writeRegValue)
     //----------------------------------------------------------------------
     TJS_BEGIN_NATIVE_METHOD_DECL(/*func. name*/ getArgument) {
         if(numparams < 1)

@@ -8,11 +8,11 @@
 //---------------------------------------------------------------------------
 // TJS2 "Object" class implementation
 //---------------------------------------------------------------------------
-#include "tjsCommHead.h"
-
-#include "tjsObject.h"
+#include "tjsVariant.h"
+#include "tjsString.h"
 #include "tjsUtils.h"
-#include "tjsNative.h"
+#include "tjsDebug.h"
+#include "CompatStubs.h"
 #include "tjsHashSearch.h"
 #include "tjsGlobalStringMap.h"
 #include "tjsDebug.h"
@@ -1222,6 +1222,11 @@ namespace TJS {
                                               numparams, param, objthis);
             }
 
+            // Compat Stub Logic
+            if (TVPCheckCompatStub(this, membername, result)) {
+                return TJS_S_OK;
+            }
+
             return TJS_E_MEMBERNOTFOUND; // member not found
         }
 
@@ -1298,6 +1303,11 @@ namespace TJS {
                 if(CallGetMissing(membername, value))
                     return TJSDefaultPropGet(flag, value, result, objthis);
             }
+            
+            // Compat Stub Logic
+            if (TVPCheckCompatStub(this, membername, result)) {
+                return TJS_S_OK;
+            }
         }
 
         if(!data && flag & TJS_MEMBERENSURE) {
@@ -1369,6 +1379,15 @@ namespace TJS {
                 // call 'missing' method
                 if(CallSetMissing(membername, *param))
                     return TJS_S_OK;
+            }
+        }
+
+        // Catch missing set member for Compat Stub
+        if (!Find(membername, hint)) {
+            tTJSVariant dummy;
+            if (TVPCheckCompatStub(this, membername, &dummy)) {
+                // Ignore the set to a stubbed member silently
+                return TJS_S_OK;
             }
         }
 
