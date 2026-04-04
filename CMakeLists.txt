@@ -20,7 +20,11 @@ if(ANDROID)
     add_compile_options(-Wno-inconsistent-missing-override)
     include(cmake/vcpkg_android.cmake)
 else()
-    set(CMAKE_TOOLCHAIN_FILE $ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake)
+    if(DEFINED ENV{VCPKG_ROOT})
+        set(CMAKE_TOOLCHAIN_FILE $ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake)
+    else()
+        set(CMAKE_TOOLCHAIN_FILE ${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_root/scripts/buildsystems/vcpkg.cmake)
+    endif()
 endif()
 
 set(APP_NAME krkr2)
@@ -97,6 +101,7 @@ add_subdirectory(backend/rust)
 # build library
 add_subdirectory(${KRKR2CORE_PATH})
 # add_subdirectory(${KRKR2PLUGIN_PATH})
+add_subdirectory(backend/platform)
 
 # target_link_libraries(${PROJECT_NAME} PUBLIC
 #     krkr2core

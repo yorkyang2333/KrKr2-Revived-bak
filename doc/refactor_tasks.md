@@ -168,14 +168,14 @@ KrKr2-Revived/
 | `WaveSegmentQueue` | 将音频帧排队和片段管理替换为 Rust 实现，废除复杂的 C++ 双端队列运算 | ✅ |
 | 解码器接口 FFI | 通过 `cxx` 的 Trait 对象映射，实现 `tTVPWaveDecoder` 的 Rust 框架基类 | ✅ |
 
-### 第四阶段：渲染层与输入层重写 ⬜ 待开始
+### 第四阶段：渲染层与输入层重写 🔄 进行中
 
 | 任务 | 状态 |
 |------|------|
-| 实现 `IRenderer` 接口的 SDL3/SDL2 后端 | ⬜ |
-| 实现 `IWindow` 接口的跨平台窗口管理 | ⬜ |
+| 实现 `IRenderer` 接口的 SDL3/SDL2 后端 | ✅ (已创建 SDL3 实现) |
+| 实现 `IWindow` 接口的跨平台窗口管理 | ✅ (已创建 SDL3 实现) |
 | 图层位图（Layer Bitmap）硬件加速合成 | ⬜ |
-| 对接触摸/鼠标输入事件到引擎 | ⬜ |
+| 对接触摸/鼠标输入事件到引擎 | 🔄 (开发中 - SDLInput) |
 | 端口 Live2D 插件到新渲染管线 | ⬜ |
 
 ### 第四阶段：Flutter UI 整合 ⬜ 待开始
