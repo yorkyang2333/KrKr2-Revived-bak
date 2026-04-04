@@ -9,26 +9,29 @@ set(VISUAL_SOURCE_FILES
     ${VISUAL_PATH}/SaveTLG5.cpp
     ${VISUAL_PATH}/FontSystem.cpp
     ${VISUAL_PATH}/tvpps.inc
-    ${VISUAL_PATH}/LoadPVRv3.cpp
+#     ${VISUAL_PATH}/LoadPVRv3.cpp
     ${VISUAL_PATH}/RectItf.cpp
     ${VISUAL_PATH}/VideoOvlIntf.cpp
     ${VISUAL_PATH}/LayerBitmapIntf.cpp
     ${VISUAL_PATH}/FontImpl.cpp
-    ${VISUAL_PATH}/RenderManager.cpp
+#     ${VISUAL_PATH}/RenderManager.cpp
     ${VISUAL_PATH}/LoadJPEG.cpp
     ${VISUAL_PATH}/GraphicsLoaderIntf.cpp
     ${VISUAL_PATH}/SaveTLG6.cpp
     ${VISUAL_PATH}/FreeType.cpp
-    ${VISUAL_PATH}/LoadJXR.cpp
+#     ${VISUAL_PATH}/LoadJXR.cpp
     ${VISUAL_PATH}/ImageFunction.cpp
     ${VISUAL_PATH}/tvpgl.cpp
     ${VISUAL_PATH}/LoadTLGHeader.cpp
     ${VISUAL_PATH}/LayerTreeOwnerImpl.cpp
+    ${VISUAL_PATH}/BitmapBitsAlloc.cpp
     ${VISUAL_PATH}/GraphicsLoadThread.cpp
     ${VISUAL_PATH}/LayerManager.cpp
     ${VISUAL_PATH}/PrerenderedFont.cpp
-    ${VISUAL_PATH}/LoadBPG.cpp
+#     ${VISUAL_PATH}/LoadBPG.cpp
     ${VISUAL_PATH}/WindowIntf.cpp
+    ${VISUAL_PATH}/WindowImpl.cpp
+    ${VISUAL_PATH}/TVPScreen.cpp
     ${VISUAL_PATH}/FreeTypeFontRasterizer.cpp
     ${VISUAL_PATH}/LoadPNG.cpp
     ${VISUAL_PATH}/LayerIntf.cpp
@@ -61,16 +64,19 @@ if(TARGET krkr2_image_adapter)
     target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../../rust/krkr2-image/include)
 endif()
 
-target_link_libraries(${PROJECT_NAME} PRIVATE libbpg)
+find_package(Freetype REQUIRED)
+target_link_libraries(${PROJECT_NAME} PRIVATE Freetype::Freetype)
+
+# target_link_libraries(${PROJECT_NAME} PRIVATE libbpg)
 
 find_package(WebP CONFIG REQUIRED)
 target_link_libraries(${PROJECT_NAME} INTERFACE WebP::webp WebP::webpdecoder WebP::webpdemux)
 
 
-find_package(JXR REQUIRED)
+# find_package(JXR REQUIRED)
 target_compile_definitions(${PROJECT_NAME} PRIVATE -D__ANSI__)
-target_include_directories(${PROJECT_NAME} PRIVATE ${JXR_INCLUDE_DIRS})
-target_link_libraries(${PROJECT_NAME} PRIVATE ${JXR_LIBRARIES})
+# target_include_directories(${PROJECT_NAME} PRIVATE ${JXR_INCLUDE_DIRS})
+# target_link_libraries(${PROJECT_NAME} PRIVATE ${JXR_LIBRARIES})
 
 find_package(libjpeg-turbo CONFIG REQUIRED)
 target_link_libraries(${PROJECT_NAME} PUBLIC

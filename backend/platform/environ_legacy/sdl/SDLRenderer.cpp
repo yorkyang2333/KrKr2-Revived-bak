@@ -1,9 +1,9 @@
 #include "SDLRenderer.h"
 #include <stdexcept>
-
+#include <string>
 SDLTexture::SDLTexture(SDL_Renderer* renderer, int width, int height, int format)
     : width_(width), height_(height) {
-    texture_ = SDL_CreateTexture(renderer, format, SDL_TEXTUREACCESS_STREAMING, width, height);
+    texture_ = SDL_CreateTexture(renderer, static_cast<SDL_PixelFormat>(format), SDL_TEXTUREACCESS_STREAMING, width, height);
     if (!texture_) {
         throw std::runtime_error("Failed to create SDL Texture: " + std::string(SDL_GetError()));
     }

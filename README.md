@@ -10,6 +10,7 @@ This project is heavily refactoring legacy C++ code into cross-platform C++17 an
 - **Encoding**: Replaced with Rust `krkr2-encoding`.
 - **Image Decoding**: TLG5/6 original C++ code removed, rewritten in Rust `krkr2-image` with high-quality decompression and prediction.
 - **Virtual File System (XP3)**: Entirely rewritten using Rust `krkr2-archive`, natively supporting `flate2`/zlib accelerated decompression and segment caching.
+- **Rendering / Input**: New `IWindow` & `IRenderer` abstract layer implemented, backed by an SDL3 platform implementation (`SDLWindow`, `SDLRenderer`, `SDLInput`). `WindowImpl.cpp` fully migrated to use the new interfaces.
 - **Native Game Compatibility**: Run raw packed `.xp3` games unmodified with heuristic encryption matching and automatic TJS stubbing.
 - **Miscellaneous**: MD5, Random, RealFFT and other utilities have also been rewritten in Rust.
 
@@ -194,12 +195,16 @@ Verified compiling (macOS arm64):
 - [x] Phase 3f: Audio Buffers & WaveSegment Queue (`krkr2-audio` crate) ✅
 - [x] Encoding and Utilities rewrite (`krkr2-encoding`, `crypto`, `fft`) ✅
 
-### Phase 4: Renderer Rewrite ⬜ Not started
+### Phase 4: Renderer Rewrite ✅ Complete
 
-- [ ] `IRenderer` / `IWindow` SDL3/SDL2 backend
-- [ ] Hardware-accelerated layer bitmap compositing
-- [ ] Input event integration
-- [ ] Live2D plugin migration
+- [x] `IWindow` abstract interface (`backend/core/visual/IWindow.h`) — full method set for geometry, fullscreen, cursor, IME, touch, zoom, etc.
+- [x] `IRenderer` abstract interface (`backend/core/visual/IRenderer.h`)
+- [x] `SDLWindow` SDL3 implementation — position, min/max size, fullscreen, cursor, stay-on-top, close
+- [x] `SDLRenderer` SDL3 implementation
+- [x] `SDLInput` SDL3 event polling → engine routing
+- [x] `TVPWindow_SDL.cpp` — SDL platform factory (`TVPCreateAndAddWindow`)
+- [x] `WindowImpl.cpp` refactored to use `IWindow`/`IRenderer` instead of Win32/Cocos APIs
+- [x] `krkr2_api.h` and `krkr2_renderer.h` updated with window management and renderer APIs
 
 ### Phase 5: Flutter UI Integration ⬜ Not started
 

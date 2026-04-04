@@ -23,6 +23,15 @@
       "name": "sdl3",
       "default-features": false
     },
+    "libjpeg-turbo",
+    "libwebp",
+    "libpng",
+    {
+      "name": "opencv4",
+      "default-features": false,
+      "features": ["jpeg", "png", "webp"]
+    },
+    "freetype",
     "spdlog",
     "uchardet",
     "unrar",

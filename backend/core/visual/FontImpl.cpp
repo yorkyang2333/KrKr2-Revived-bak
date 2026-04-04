@@ -15,7 +15,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-#include <cocos/platform/CCFileUtils.h>
+// removed cocos
 #include "StorageImpl.h"
 #include "BinaryStream.h"
 
@@ -219,24 +219,7 @@ void TVPInitFontNames() {
 #endif
 
         { // from internal storage
-            auto data = cocos2d::FileUtils::getInstance()->getDataFromFile(
-                "NotoSansCJK-Regular.ttc");
-            if(data.isNull()) {
-                spdlog::critical("can't found internal font file!");
-                exit(-1);
-            }
-            if(TVPInternalEnumFonts(
-                   data.getBytes(), data.getSize(), "NotoSansCJK-Regular.ttc",
-                   [](TVPFontNamePathInfo *info) -> tTJSBinaryStream * {
-                       auto data =
-                           cocos2d::FileUtils::getInstance()->getDataFromFile(
-                               info->Path.AsStdString());
-                       auto *ret = new tTVPMemoryStream();
-                       ret->WriteBuffer(data.getBytes(), data.getSize());
-                       ret->SetPosition(0);
-                       return ret;
-                   }))
-                break;
+            if(TVPEnumFontsProc(TVPGetAppPath() + "NotoSansCJK-Regular.ttc")) break;
         }
     } while(false);
     if(TVPFontNames.GetCount() > 0) {

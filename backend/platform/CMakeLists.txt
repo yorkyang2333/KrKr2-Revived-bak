@@ -5,6 +5,7 @@ add_library(${PROJECT_NAME} STATIC
     environ_legacy/sdl/SDLWindow.cpp
     environ_legacy/sdl/SDLRenderer.cpp
     environ_legacy/sdl/SDLInput.cpp
+    environ_legacy/sdl/TVPWindow_SDL.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC

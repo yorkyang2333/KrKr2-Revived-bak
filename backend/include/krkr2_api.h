@@ -8,16 +8,39 @@
 extern "C" {
 #endif
 
+// ---------------------------------------------------------------------------
 // Engine initialization and shutdown
+// ---------------------------------------------------------------------------
 bool krkr2_init(int argc, char** argv);
 void krkr2_shutdown();
 
+// ---------------------------------------------------------------------------
 // Frame updating
+// Called once per frame from the host application's main loop.
+// Pumps SDL events and drives the engine's per-frame logic.
+// ---------------------------------------------------------------------------
 void krkr2_tick();
 
+// ---------------------------------------------------------------------------
 // Input and Events
+// Push synthesized input events into the engine from the host (Flutter, etc.)
+// ---------------------------------------------------------------------------
 void krkr2_push_mouse_event(int type, int button, int x, int y);
 void krkr2_push_key_event(int type, int keycode);
+
+// ---------------------------------------------------------------------------
+// Window management
+// krkr2_get_window_count() returns the number of open engine windows.
+// krkr2_get_native_window()  returns the SDL_Window* (as void*) for the
+//   primary engine window; returns NULL if none is open yet.
+// ---------------------------------------------------------------------------
+int   krkr2_get_window_count();
+void* krkr2_get_primary_native_window();
+
+// ---------------------------------------------------------------------------
+// Display queries
+// ---------------------------------------------------------------------------
+void krkr2_get_window_size(int* width, int* height);
 
 #ifdef __cplusplus
 }

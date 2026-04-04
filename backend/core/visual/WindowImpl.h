@@ -221,12 +221,16 @@ extern void TVPRestoreFullScreenWindowAtActivation();
 //---------------------------------------------------------------------------
 // tTJSNI_Window : Window Native Instance
 //---------------------------------------------------------------------------
-typedef iWindowLayer TTVPWindowForm;
+#include "IWindow.h"
+#include "IRenderer.h"
+#include <memory>
+
+typedef IWindow TTVPWindowForm;
 class iTVPDrawDevice;
 class tTJSNI_BaseLayer;
 class tTJSNI_Window : public tTJSNI_BaseWindow {
-    TTVPWindowForm *Form;
-    //	class tTVPVSyncTimingThread *VSyncTimingThread;
+    std::shared_ptr<IWindow> Form;
+    std::shared_ptr<IRenderer> Renderer;
 
 public:
     tTJSNI_Window();
@@ -240,7 +244,7 @@ public:
         const override; // tTJSNI_BaseWindow::CanDeliverEvents override
 
 public:
-    [[nodiscard]] TTVPWindowForm *GetForm() const override { return Form; }
+    [[nodiscard]] TTVPWindowForm *GetForm() const override { return Form.get(); }
     void NotifyWindowClose();
     void SendCloseMessage();
     void TickBeat();

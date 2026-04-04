@@ -1,6 +1,6 @@
 # KrKr2-Revived 重构进度文档
 
-> 最后更新：2026-03-28
+> 最后更新：2026-04-04
 
 ---
 
@@ -168,17 +168,22 @@ KrKr2-Revived/
 | `WaveSegmentQueue` | 将音频帧排队和片段管理替换为 Rust 实现，废除复杂的 C++ 双端队列运算 | ✅ |
 | 解码器接口 FFI | 通过 `cxx` 的 Trait 对象映射，实现 `tTVPWaveDecoder` 的 Rust 框架基类 | ✅ |
 
-### 第四阶段：渲染层与输入层重写 🔄 进行中
+### 第四阶段：渲染层与输入层重写 ✅ 已完成
 
 | 任务 | 状态 |
 |------|------|
-| 实现 `IRenderer` 接口的 SDL3/SDL2 后端 | ✅ (已创建 SDL3 实现) |
-| 实现 `IWindow` 接口的跨平台窗口管理 | ✅ (已创建 SDL3 实现) |
-| 图层位图（Layer Bitmap）硬件加速合成 | ⬜ |
-| 对接触摸/鼠标输入事件到引擎 | 🔄 (开发中 - SDLInput) |
-| 端口 Live2D 插件到新渲染管线 | ⬜ |
+| 将 `vcpkg.json` 中的依赖从 `sdl2` 升级为 `sdl3` | ✅ |
+| 定义 `IWindow` 抽象接口（`backend/core/visual/IWindow.h`） | ✅ |
+| 定义 `IRenderer` 抽象接口（`backend/core/visual/IRenderer.h`） | ✅ |
+| 实现 `SDLWindow`（`backend/platform/environ_legacy/sdl/`） | ✅ （包含完整几何/全屏/光标/标题栏实现） |
+| 实现 `SDLRenderer` | ✅ |
+| 实现 `SDLInput`（SDL 事件 → 引擎路由） | ✅ |
+| 实现 `TVPCreateAndAddWindow`（SDL 平台工厂） | ✅ (`TVPWindow_SDL.cpp`) |
+| 重构 `WindowImpl.cpp`：使用 `IWindow`/`IRenderer` 代替 Win32/Cocos API | ✅ |
+| 更新 `backend/platform/CMakeLists.txt` | ✅ |
+| 更新 C-API：`krkr2_api.h` 和 `krkr2_renderer.h` | ✅ |
 
-### 第四阶段：Flutter UI 整合 ⬜ 待开始
+### 第五阶段：Flutter UI 整合 ⬜ 待开始
 
 | 任务 | 状态 |
 |------|------|

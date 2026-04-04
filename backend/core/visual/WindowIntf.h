@@ -59,7 +59,7 @@ enum tTVPMouseCursorState {
 //---------------------------------------------------------------------------
 //! @brief Window basic interface
 //---------------------------------------------------------------------------
-class iWindowLayer;
+class IWindow;
 class iTVPWindow {
 public:
     //! @brief	元画像のサイズが変更された
@@ -144,7 +144,7 @@ public:
     virtual iTJSDispatch2 *GetWindowDispatch() = 0;
 
     // add by ZeaS
-    [[nodiscard]] virtual iWindowLayer *GetForm() const = 0;
+    [[nodiscard]] virtual IWindow *GetForm() const = 0;
 };
 //---------------------------------------------------------------------------
 /*]*/

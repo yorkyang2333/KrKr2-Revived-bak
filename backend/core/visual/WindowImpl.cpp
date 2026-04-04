@@ -34,32 +34,32 @@
 // #include "VSyncTimingThread.h"
 // #include "MouseCursor.h"
 
-iWindowLayer *TVPCreateAndAddWindow(tTJSNI_Window *w);
+std::shared_ptr<IWindow> TVPCreateAndAddWindow(tTJSNI_Window *w);
 #define MK_SHIFT 4
 #define MK_CONTROL 8
 #define MK_ALT (0x20)
 tjs_uint32 TVP_TShiftState_To_uint32(tjs_uint32 state) {
     tjs_uint32 result = 0;
     if(state & MK_SHIFT) {
-        result |= ssShift;
+        result |= TVP_SS_SHIFT;
     }
     if(state & MK_CONTROL) {
-        result |= ssCtrl;
+        result |= TVP_SS_CTRL;
     }
     if(state & MK_ALT) {
-        result |= ssAlt;
+        result |= TVP_SS_ALT;
     }
     return result;
 }
 tjs_uint32 TVP_TShiftState_From_uint32(tjs_uint32 state) {
     tjs_uint32 result = 0;
-    if(state & ssShift) {
+    if(state & TVP_SS_SHIFT) {
         result |= MK_SHIFT;
     }
-    if(state & ssCtrl) {
+    if(state & TVP_SS_CTRL) {
         result |= MK_CONTROL;
     }
-    if(state & ssAlt) {
+    if(state & TVP_SS_ALT) {
         result |= MK_ALT;
     }
     return result;
@@ -1303,7 +1303,7 @@ void tTJSNI_Window::WindowReleaseCapture() {
 void tTJSNI_Window::SetHintText(iTJSDispatch2 *sender, const ttstr &text) {
     // set hint text to window
     if(Form)
-        Form->SetHintText(sender, text);
+        Form->SetHintText(static_cast<void*>(sender), text.AsStdString());
 }
 //---------------------------------------------------------------------------
 void tTJSNI_Window::SetAttentionPoint(tTJSNI_BaseLayer *layer, tjs_int l,
@@ -1462,7 +1462,9 @@ void tTJSNI_Window::RegisterWindowMessageReceiver(tTVPWMRRegMode mode,
                                                   const void *userdata) {
     if(!Form)
         return;
-    Form->RegisterWindowMessageReceiver(mode, proc, userdata);
+    // IWindow::RegisterWindowMessageReceiver takes (void*, void*, const void*)
+    Form->RegisterWindowMessageReceiver(reinterpret_cast<void*>(static_cast<intptr_t>(mode)),
+                                        proc, userdata);
 }
 //---------------------------------------------------------------------------
 void tTJSNI_Window::Close() {
@@ -1520,10 +1522,13 @@ void tTJSNI_Window::SetVisible(bool s) {
 }
 //---------------------------------------------------------------------------
 void tTJSNI_Window::GetCaption(ttstr &v) const {
-    if(Form)
-        v = Form->GetCaption();
-    else
+    if(Form) {
+        std::string s;
+        Form->GetCaption(s);
+        v = ttstr(s.c_str());
+    } else {
         v.Clear();
+    }
 }
 //---------------------------------------------------------------------------
 void tTJSNI_Window::SetCaption(const ttstr &v) {

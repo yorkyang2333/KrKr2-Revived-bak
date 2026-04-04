@@ -2,7 +2,8 @@
 #include "tjs.h"
 #include "tjsHashSearch.h"
 #include <functional>
-#include <freetype/freetype.h>
+#include <ft2build.h>
+#include FT_FREETYPE_H
 
 const FT_Library TVPGetFontLibrary();
 
