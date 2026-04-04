@@ -227,13 +227,13 @@ void SDLWindow::SetCursorPos(int x, int y) {
                                                 static_cast<float>(y));
 }
 
-void SDLWindow::SetMouseCursorState(tTVPMouseCursorState mcs) {
+void SDLWindow::SetMouseCursorState(eIWindowMouseCursorState mcs) {
     cursorState_ = mcs;
-    if (mcs == mcsHidden) SDL_HideCursor();
+    if (mcs == imcsHidden) SDL_HideCursor();
     else                  SDL_ShowCursor();
 }
 
-tTVPMouseCursorState SDLWindow::GetMouseCursorState() const {
+eIWindowMouseCursorState SDLWindow::GetMouseCursorState() const {
     return cursorState_;
 }
 

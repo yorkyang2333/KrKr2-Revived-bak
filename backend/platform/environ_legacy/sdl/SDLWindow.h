@@ -62,8 +62,8 @@ public:
     // --- Cursor ---
     void GetCursorPos(int& x, int& y) override;
     void SetCursorPos(int x, int y) override;
-    void SetMouseCursorState(tTVPMouseCursorState mcs) override;
-    tTVPMouseCursorState GetMouseCursorState() const override;
+    void SetMouseCursorState(eIWindowMouseCursorState mcs) override;
+    eIWindowMouseCursorState GetMouseCursorState() const override;
 
     // --- Window actions ---
     void BringToFront() override;
@@ -75,6 +75,6 @@ private:
     SDL_Window* window_;
     bool fullscreen_ = false;
     bool stayOnTop_  = false;
-    tTVPMouseCursorState cursorState_ = mcsVisible;
+    eIWindowMouseCursorState cursorState_ = imcsVisible;
     bool closeRequested_ = false;
 };

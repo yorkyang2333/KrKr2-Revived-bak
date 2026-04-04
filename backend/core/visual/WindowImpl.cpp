@@ -1348,7 +1348,7 @@ void tTJSNI_Window::SetDefaultImeMode(tTVPImeMode mode) {
 //---------------------------------------------------------------------------
 tTVPImeMode tTJSNI_Window::GetDefaultImeMode() const {
     if(Form)
-        return Form->GetDefaultImeMode();
+        return (tTVPImeMode)Form->GetDefaultImeMode();
     return ::imDisable;
 }
 //---------------------------------------------------------------------------
@@ -1492,7 +1492,7 @@ void tTJSNI_Window::BringToFront() {
 //---------------------------------------------------------------------------
 void tTJSNI_Window::Update(tTVPUpdateType type) {
     if(Form)
-        Form->UpdateWindow(type);
+        Form->UpdateWindow((eIWindowUpdateType)type);
 }
 //---------------------------------------------------------------------------
 void tTJSNI_Window::ShowModal() {
@@ -1734,13 +1734,13 @@ void tTJSNI_Window::SetInnerSize(tjs_int w, tjs_int h) {
 void tTJSNI_Window::SetBorderStyle(tTVPBorderStyle st) {
     FullScreenGuard();
     if(Form)
-        Form->SetBorderStyle(st);
+        Form->SetBorderStyle((eIWindowBorderStyle)st);
 }
 //---------------------------------------------------------------------------
 tTVPBorderStyle tTJSNI_Window::GetBorderStyle() const {
     if(!Form)
         return (tTVPBorderStyle)0;
-    return Form->GetBorderStyle();
+    return (tTVPBorderStyle)Form->GetBorderStyle();
 }
 //---------------------------------------------------------------------------
 void tTJSNI_Window::SetStayOnTop(bool b) {
@@ -1826,13 +1826,13 @@ void tTJSNI_Window::RemoveMaskRegion() {
 void tTJSNI_Window::SetMouseCursorState(tTVPMouseCursorState mcs) {
     if(!Form)
         return;
-    Form->SetMouseCursorState(mcs);
+    Form->SetMouseCursorState((eIWindowMouseCursorState)mcs);
 }
 //---------------------------------------------------------------------------
 tTVPMouseCursorState tTJSNI_Window::GetMouseCursorState() const {
     if(!Form)
         return mcsVisible;
-    return Form->GetMouseCursorState();
+    return (tTVPMouseCursorState)Form->GetMouseCursorState();
 }
 //---------------------------------------------------------------------------
 void tTJSNI_Window::SetFocusable(bool b) {

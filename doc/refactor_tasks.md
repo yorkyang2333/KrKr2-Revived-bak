@@ -183,10 +183,13 @@ KrKr2-Revived/
 | 更新 `backend/platform/CMakeLists.txt` | ✅ |
 | 更新 C-API：`krkr2_api.h` 和 `krkr2_renderer.h` | ✅ |
 
-### 第五阶段：Flutter UI 整合 ⬜ 待开始
+### 第五阶段：Flutter UI 整合 🚧 进行中
 
 | 任务 | 状态 |
 |------|------|
+| 修复引擎底层依赖与接口隔离，支持 `BUILD_AS_LIBRARY` 无头静态编译 | ✅ |
+| C-API 完善 (`krkr2_api.h`) 与无头层 `KrKr2HeadlessWindow` 实现 | ✅ |
+| 引擎核心编译消除无头模式下的依赖错误 | ✅ |
 | `flutter create` 初始化 `frontend/` 工程 | ⬜ |
 | Dart FFI 绑定 C-API | ⬜ |
 | 实现 Flutter Texture 渲染（Metal/GL/Vulkan 共享纹理） | ⬜ |

@@ -50,45 +50,33 @@ if(MSVC)
     # set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 
-if(ANDROID)
-    add_library(${PROJECT_NAME} SHARED ${CMAKE_CURRENT_SOURCE_DIR}/platforms/android/cpp/krkr2_android.cpp)
-    find_package(unofficial-breakpad CONFIG REQUIRED)
-    target_link_libraries(${PROJECT_NAME} PUBLIC unofficial::breakpad::libbreakpad_client)
-elseif(LINUX)
-    add_executable(${PROJECT_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/platforms/linux/main.cpp)
-elseif(WINDOWS)
-    add_executable(${PROJECT_NAME}
-        ${CMAKE_CURRENT_SOURCE_DIR}/platforms/windows/main.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/platforms/windows/game.rc
-    )
-elseif(IOS)
-#        list(APPEND GAME_HEADER
-#                proj.ios_mac/ios/AppController.h
-#                proj.ios_mac/ios/RootViewController.h
-#        )
-#        set(APP_UI_RES
-#                proj.ios_mac/ios/LaunchScreen.storyboard
-#                proj.ios_mac/ios/LaunchScreenBackground.png
-#                proj.ios_mac/ios/Images.xcassets
-#        )
-#        list(APPEND GAME_SOURCE
-#                proj.ios_mac/ios/main.m
-#                proj.ios_mac/ios/AppController.mm
-#                proj.ios_mac/ios/RootViewController.mm
-#                proj.ios_mac/ios/Prefix.pch
-#                ${APP_UI_RES}
-#        )
-elseif(APPLE)
-    set(APP_UI_RES
-            ${CMAKE_CURRENT_SOURCE_DIR}/platforms/apple/macos/Icon.icns
-            ${CMAKE_CURRENT_SOURCE_DIR}/platforms/apple/macos/Info.plist
-    )
-    add_executable(${PROJECT_NAME}
-            ${CMAKE_CURRENT_SOURCE_DIR}/platforms/apple/macos/main.cpp
-            ${CMAKE_CURRENT_SOURCE_DIR}/platforms/apple/macos/Prefix.pch
-            ${APP_UI_RES}
-    )
+option(BUILD_AS_LIBRARY "Build engine as a library without standalone frontend" ON)
+
+if(NOT BUILD_AS_LIBRARY)
+    if(ANDROID)
+        add_library(${PROJECT_NAME} SHARED ${CMAKE_CURRENT_SOURCE_DIR}/platforms/android/cpp/krkr2_android.cpp)
+        find_package(unofficial-breakpad CONFIG REQUIRED)
+        target_link_libraries(${PROJECT_NAME} PUBLIC unofficial::breakpad::libbreakpad_client)
+    elseif(LINUX)
+        add_executable(${PROJECT_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/platforms/linux/main.cpp)
+    elseif(WINDOWS)
+        add_executable(${PROJECT_NAME}
+            ${CMAKE_CURRENT_SOURCE_DIR}/platforms/windows/main.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/platforms/windows/game.rc
+        )
+    elseif(APPLE)
+        set(APP_UI_RES
+                ${CMAKE_CURRENT_SOURCE_DIR}/platforms/apple/macos/Icon.icns
+                ${CMAKE_CURRENT_SOURCE_DIR}/platforms/apple/macos/Info.plist
+        )
+        add_executable(${PROJECT_NAME}
+                ${CMAKE_CURRENT_SOURCE_DIR}/platforms/apple/macos/main.cpp
+                ${CMAKE_CURRENT_SOURCE_DIR}/platforms/apple/macos/Prefix.pch
+                ${APP_UI_RES}
+        )
+    endif()
 endif()
+
 
 # target_include_directories(${PROJECT_NAME} PUBLIC ${KRKR2CORE_PATH}/environ/cocos2d)
 

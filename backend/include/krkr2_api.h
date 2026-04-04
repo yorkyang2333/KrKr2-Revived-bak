@@ -38,6 +38,18 @@ int   krkr2_get_window_count();
 void* krkr2_get_primary_native_window();
 
 // ---------------------------------------------------------------------------
+// Headless / Windowless Support
+// ---------------------------------------------------------------------------
+void krkr2_set_game_path(const char* path);
+
+// ---------------------------------------------------------------------------
+// Logging & Debugging
+// ---------------------------------------------------------------------------
+// Log levels: 0 = Info, 1 = Warning, 2 = Error, 3 = Important
+typedef void (*krkr2_log_callback_t)(int level, const char* message);
+void krkr2_set_log_callback(krkr2_log_callback_t callback);
+
+// ---------------------------------------------------------------------------
 // Display queries
 // ---------------------------------------------------------------------------
 void krkr2_get_window_size(int* width, int* height);

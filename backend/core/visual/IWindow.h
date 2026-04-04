@@ -8,32 +8,28 @@
 // ---------------------------------------------------------------------------
 struct tTVPFont;
 
-// These types are from tjsTypes.h – using plain integers so IWindow
-// does not need to pull in the TJS2 headers (keeping it truly platform-neutral)
-using tjs_uint16  = uint16_t;
-using tjs_uint32  = uint32_t;
-using tjs_char    = wchar_t;
+#include "../tjs2/tjsTypes.h"
 
 // ---------------------------------------------------------------------------
 // TVP border style enum (originally from VCL/Win32)
 // ---------------------------------------------------------------------------
-enum tTVPBorderStyle {
-    bsNone     = 0,
-    bsSingle   = 1,
-    bsSizeable = 2,
-    bsDialog   = 3
+enum eIWindowBorderStyle {
+    ibsNone     = 0,
+    ibsSingle   = 1,
+    ibsSizeable = 2,
+    ibsDialog   = 3
 };
 
 // TVP mouse cursor state
-enum tTVPMouseCursorState {
-    mcsVisible = 0,
-    mcsHidden  = 1
+enum eIWindowMouseCursorState {
+    imcsVisible = 0,
+    imcsHidden  = 1
 };
 
 // TVP update type
-enum tTVPUpdateType {
-    utNone  = 0,
-    utForce = 1
+enum eIWindowUpdateType {
+    iutNone  = 0,
+    iutForce = 1
 };
 
 // TVP display orientation
@@ -94,14 +90,26 @@ public:
     virtual void SetInnerSize(int w, int h) { SetSize(w, h); }
 
     // --- Window attributes ---
-    virtual void            SetBorderStyle(tTVPBorderStyle /*st*/) {}
-    virtual tTVPBorderStyle GetBorderStyle() const { return bsSizeable; }
+    virtual void            SetBorderStyle(eIWindowBorderStyle /*st*/) {}
+    virtual eIWindowBorderStyle GetBorderStyle() const { return ibsSizeable; }
 
     virtual void SetStayOnTop(bool /*b*/) {}
     virtual bool GetStayOnTop() const     { return false; }
 
     virtual void SetFocusable(bool /*b*/) {}
     virtual bool GetFocusable()           { return true; }
+
+    virtual void BeginMove() {}
+    virtual void SetLayerLeft(int /*l*/) {}
+    virtual int  GetLayerLeft() const { return 0; }
+    virtual void SetLayerTop(int /*t*/) {}
+    virtual int  GetLayerTop() const { return 0; }
+    virtual void SetLayerPosition(int /*l*/, int /*t*/) {}
+    virtual void SetInnerSunken(bool /*b*/) {}
+    virtual bool GetInnerSunken() const { return false; }
+    virtual void SetShowScrollBars(bool /*b*/) {}
+    virtual bool GetShowScrollBars() const { return false; }
+
 
     // Full-screen (tracks state in implementation)
     virtual void SetFullScreenMode(bool b) { SetFullScreen(b); }
@@ -118,9 +126,9 @@ public:
     // --- Mouse cursor ---
     virtual void SetDefaultMouseCursor() {}
     virtual void SetMouseCursor(int /*cursor*/) {}
-    virtual void SetMouseCursorState(tTVPMouseCursorState /*mcs*/) {}
-    virtual tTVPMouseCursorState GetMouseCursorState() const { return mcsVisible; }
-    virtual void HideMouseCursor() { SetMouseCursorState(mcsHidden); }
+    virtual void SetMouseCursorState(eIWindowMouseCursorState /*mcs*/) {}
+    virtual eIWindowMouseCursorState GetMouseCursorState() const { return imcsVisible; }
+    virtual void HideMouseCursor() { SetMouseCursorState(imcsHidden); }
     virtual void GetCursorPos(int& x, int& y) { x = 0; y = 0; }
     virtual void SetCursorPos(int /*x*/, int /*y*/) {}
 
@@ -187,7 +195,7 @@ public:
 
     // --- Window state / actions ---
     virtual void BringToFront()               {}
-    virtual void UpdateWindow(tTVPUpdateType) {}
+    virtual void UpdateWindow(eIWindowUpdateType) {}
     virtual void ShowWindowAsModal()          {}
     virtual void Close()                      {}
     virtual void OnCloseQueryCalled(bool /*b*/) {}
