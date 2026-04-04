@@ -23,4 +23,16 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 
 target_link_libraries(${PROJECT_NAME} PUBLIC
     krkr2core
+    krkr2-image
+    krkr2-archive
+    krkr2-crypto
+    krkr2-fft
+    krkr2-encoding
 )
+
+if (APPLE AND BUILD_AS_LIBRARY)
+    target_link_libraries(${PROJECT_NAME} PUBLIC
+        xml2
+        iconv
+    )
+endif()

@@ -3,6 +3,9 @@ name = "krkr2-audio"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+crate-type = ["staticlib", "rlib"]
+
 [dependencies]
 cxx = "1.0"
 krkr2-bridge = { path = "../krkr2-bridge" }
