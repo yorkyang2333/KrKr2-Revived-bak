@@ -186,15 +186,11 @@ KrKr2-Revived/
 ### Phase 2: Standalone Module Compilation ✅ Complete
 
 Verified compiling (macOS arm64):
-- [x] `tjs2` ✅
-- [x] `core_utils_module` ✅
-- [x] `core_base_module` ✅
-
-### Phase 3: Rust Core Refactor ✅ Partially Complete
-
-- [x] Rust infrastructure & CMake Corrosion integration ✅
-- [x] XP3 Archive filesystem rewrite (`krkr2-archive`) ✅
-- [x] TLG Image decoder rewrite (`krkr2-image`) ✅
+- [x] Phase 3b: C++ Encapsulation Adapters & Two-Way Bi-directional FFI Binding
+- [x] Phase 3c: Cryptographic Algorithms Migration (`krkr2-crypto` crate)
+- [x] Phase 3d: Core Deserialization & Render Logic (`krkr2-image` crate)
+- [x] Phase 3e: XP3 Core Archive & Platform I/O Architecture (`krkr2-archive` crate)
+- [x] Phase 3f: Audio Buffers & WaveSegment Queue (`krkr2-audio` crate) ✅
 - [x] Encoding and Utilities rewrite (`krkr2-encoding`, `crypto`, `fft`) ✅
 
 ### Phase 4: Renderer Rewrite ⬜ Not started

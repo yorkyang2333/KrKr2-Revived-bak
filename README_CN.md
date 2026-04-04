@@ -192,10 +192,11 @@ KrKr2-Revived/
 
 ### 阶段三：Rust 底层重构 ✅ 阶段性完成
 
-- [x] Rust 基础设施与 CMake Corrosion 联编 ✅
-- [x] XP3 存档文件系统重写 (`krkr2-archive`) ✅
-- [x] TLG 图像解码器重写 (`krkr2-image`) ✅
-- [x] 编码层与工具类重写 (`krkr2-encoding`, `crypto`, `fft`) ✅
+- [x] Phase 3b: C++ 侧封装适配与双向通讯绑定 (CXX)
+- [x] Phase 3c: 加密库 (krkr2-crypto crate) 迁移
+- [x] Phase 3d: 核心数据反序列化与渲染逻辑 (krkr2-image crate)
+- [x] Phase 3e: XP3 核心封包与 I/O 层架构 (krkr2-archive crate)
+- [x] Phase 3f: 音频缓冲管理与环形队列 (krkr2-audio crate) ✅
 
 ### 阶段四：渲染方案重写 ⬜ 待开始
 

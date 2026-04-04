@@ -1,0 +1,11 @@
+[package]
+name = "krkr2-audio"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+cxx = "1.0"
+krkr2-bridge = { path = "../krkr2-bridge" }
+
+[build-dependencies]
+cxx-build = "1.0"

@@ -400,6 +400,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "krkr2-audio"
+version = "0.1.0"
+dependencies = [
+ "cxx",
+ "cxx-build",
+ "krkr2-bridge",
+]
+
+[[package]]
 name = "krkr2-bridge"
 version = "0.1.0"
 dependencies = [

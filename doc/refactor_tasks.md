@@ -159,12 +159,13 @@ KrKr2-Revived/
 | 通过 cxx bridge 实现 `tTVPArchive` 子类 | ✅ |
 | 替换 `XP3Archive.cpp`，并在 C++ 端保留 `xp3filter` 加密逻辑 | ✅ |
 
-#### Phase 3f — 音频缓冲管理（via cxx bridge） ⬜ 待开始
+#### Phase 3f — 音频缓冲管理（via cxx bridge） ✅ 已完成
 
 | 任务 | 状态 |
 |------|------|
-| `krkr2-audio` crate：RingBuffer + WaveSegmentQueue | ⬜ |
-| 通过 cxx bridge 实现 `tTVPWaveDecoder` 接口 | ⬜ |
+| `RingBuffer` | 将 `RingBuffer.h` 替换为安全的 Rust 环形队列实现，支持 `cxx` 对象调用 | ✅ |
+| `WaveSegmentQueue` | 将音频帧排队和片段管理替换为 Rust 实现，废除复杂的 C++ 双端队列运算 | ✅ |
+| 解码器接口 FFI | 通过 `cxx` 的 Trait 对象映射，实现 `tTVPWaveDecoder` 的 Rust 框架基类 | ✅ |
 
 ### 第四阶段：渲染层与输入层重写 ⬜ 待开始
 
