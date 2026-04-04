@@ -5,7 +5,7 @@ set(BASE_PATH ${CMAKE_CURRENT_LIST_DIR})
 set(BASE_SOURCE_FILES
     ${BASE_PATH}/7zArchive.cpp
     ${BASE_PATH}/BinaryStream.cpp
-    ${BASE_PATH}/CharacterSet.cpp
+    # CharacterSet.cpp → replaced by Rust krkr2-encoding crate
     ${BASE_PATH}/EventIntf.cpp
     ${BASE_PATH}/ScriptMgnIntf.cpp
     ${BASE_PATH}/StorageIntf.cpp
@@ -14,7 +14,7 @@ set(BASE_SOURCE_FILES
     ${BASE_PATH}/TARArchive.cpp
     ${BASE_PATH}/TextStream.cpp
     ${BASE_PATH}/UtilStreams.cpp
-    ${BASE_PATH}/XP3Archive.cpp
+    # XP3Archive.cpp → replaced by Rust krkr2-archive crate & krkr2_archive_adapter
     ${BASE_PATH}/ZIPArchive.cpp
     ${BASE_PATH}/KAGParser.cpp
     ${BASE_PATH}/MsgIntf.cpp
@@ -32,11 +32,14 @@ set(BASE_HEADERS_DIR
 )
 
 add_library(${PROJECT_NAME} STATIC ${BASE_SOURCE_FILES})
-target_include_directories(${PROJECT_NAME} PUBLIC ${BASE_HEADERS_DIR})
+target_include_directories(${PROJECT_NAME} PUBLIC
+    ${BASE_HEADERS_DIR}
+    ${KRKR2_ENCODING_INCLUDE_DIR}
+)
 
 find_package(minizip-ng CONFIG REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE MINIZIP::minizip-ng)
-target_link_libraries(${PROJECT_NAME} PUBLIC tjs2 PRIVATE core_utils_module)
+target_link_libraries(${PROJECT_NAME} PUBLIC tjs2 PRIVATE core_utils_module krkr2-encoding krkr2_archive_adapter)
 
 find_package(uchardet CONFIG REQUIRED)
 find_package(unrar CONFIG REQUIRED)

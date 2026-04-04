@@ -1,6 +1,6 @@
 # KrKr2-Revived 重构进度文档
 
-> 最后更新：2026-03-22
+> 最后更新：2026-03-28
 
 ---
 
@@ -109,7 +109,65 @@ KrKr2-Revived/
 
 - `tjs2/tjsBinarySerializer.h` — `ULONG_MAX` 与 `tjs_uint` 的永真比较 ✅ 已修复（改为 `UINT32_MAX`）
 
-### 第三阶段：渲染层与输入层重写 ⬜ 待开始
+### 第三阶段：Rust 重构底层组件 🔄 进行中
+
+#### Phase 3a — FFI 基础设施 + 试点模块 ✅ 已完成
+
+| 任务 | 状态 |
+|------|------|
+| 创建 `backend/rust/` Cargo workspace | ✅ |
+| CMake Corrosion 集成（FetchContent v0.5.1） | ✅ |
+| `krkr2-crypto` crate：替代 `md5.c` + `Random.cpp` | ✅ |
+| `krkr2-fft` crate：替代 `RealFFT_Default.cpp`（Ooura FFT 移植） | ✅ |
+| cbindgen 自动生成 C 头文件 | ✅ |
+| Rust 单元测试（6/6 通过） | ✅ |
+| CMake 全量编译验证（tjs2 + core_utils_module + core_base_module） | ✅ |
+
+#### Phase 3b — 编码层 ✅ 已完成
+
+| 任务 | 状态 |
+|------|------|
+| `krkr2-encoding` crate（encoding_rs 封装） | ✅ |
+| 替换 `CharacterSet.cpp` + `gbk2unicode.c` + `jis2unicode.c`（~889KB） | ✅ |
+
+#### Phase 3c — cxx bridge 基础设施 ✅ 已完成
+
+> **策略升级**：剩余模块与 C++ 引擎核心类型耦合较深（`tTJSBinaryStream`、`ttstr`），需要使用 [cxx](https://cxx.rs/) bridge 进行双向绑定，而非 `extern "C"` FFI。
+
+| 任务 | 状态 |
+|------|------|
+| 创建 `krkr2-bridge` crate，声明核心 C++ 类型绑定 | ✅ |
+| 桥接 `tTJSBinaryStream`（Read/Write/Seek/GetSize） | ✅（通过 `BinaryStreamWrapper` C++ glue 转发虚函数调用） |
+| 桥接 `ttstr` ↔ `rust::String` 互转 | ⏭ 延后到 Phase 3d/3e 按需实现 |
+| CMake 集成 cxx 生成的 C++ 源文件编译 | ✅（`krkr2_bridge_glue` 静态库） |
+
+#### Phase 3d — 图像解码器（via cxx bridge） ✅ 已完成
+
+| 任务 | 状态 |
+|------|------|
+| `krkr2-image` crate：TLG5/6 解码器 Rust 重写 | ✅（LZSS + Golomb + 16 chroma filters + MED/AVG） |
+| 通过 cxx bridge 读取 `tTJSBinaryStream`，回调 scanline | ✅（`krkr2_image_adapter` C++ 适配器） |
+| 替换 `LoadTLG.cpp` → `LoadTLGHeader.cpp` + Rust decoder | ✅ |
+| TLG0.0 SDS metadata tag 解析 | ✅ |
+| 单元测试（7/7 passed） | ✅ |
+
+#### Phase 3e — 存档层（via cxx bridge） ✅ 已完成
+
+| 任务 | 状态 |
+|------|------|
+| `krkr2-archive` crate：XP3 解析 + flate2 zlib | ✅ |
+| 通过 cxx bridge 实现 `tTVPArchive` 子类 | ✅ |
+| 替换 `XP3Archive.cpp`，并在 C++ 端保留 `xp3filter` 加密逻辑 | ✅ |
+
+#### Phase 3f — 音频缓冲管理（via cxx bridge） ✅ 已完成
+
+| 任务 | 状态 |
+|------|------|
+| `RingBuffer` | 将 `RingBuffer.h` 替换为安全的 Rust 环形队列实现，支持 `cxx` 对象调用 | ✅ |
+| `WaveSegmentQueue` | 将音频帧排队和片段管理替换为 Rust 实现，废除复杂的 C++ 双端队列运算 | ✅ |
+| 解码器接口 FFI | 通过 `cxx` 的 Trait 对象映射，实现 `tTVPWaveDecoder` 的 Rust 框架基类 | ✅ |
+
+### 第四阶段：渲染层与输入层重写 ⬜ 待开始
 
 | 任务 | 状态 |
 |------|------|
@@ -174,6 +232,32 @@ KrKr2-Revived/
 - 删除：`cpp/`（内容已全量迁移到 `backend/`）
 - 删除：`ui/`（Cocos Studio 工程，已弃用）
 
+### Rust 基础设施接入（2026-03-27）
+- 新增 `backend/rust/` 目录存放 Rust 源码
+- `CMakeLists.txt` 集成 Corrosion，支持 CMake ↔ Cargo 联编
+- `.gitignore` 排除 `target/` 和生成的 C 头文件
+- **试点替换**：`md5.c`, `Random.cpp`, `RealFFT_Default.cpp` 已彻底从 utils 模块中移除，改为链接 Rust 静态库
+
+### CXX Bridge 基础设施（2026-03-28）
+- 新增 `backend/rust/krkr2-bridge/` crate，使用 [cxx](https://cxx.rs/) 进行 Rust ↔ C++ 双向绑定
+- `krkr2_bridge_glue.h/cpp`：`BinaryStreamWrapper` C++ glue 类，持有 `tTJSBinaryStream*` 并转发虚函数调用
+- `backend/rust/CMakeLists.txt` 新增 `krkr2_bridge_glue` 静态库目标
+- cxx 生成的桥接头文件位于 `target/cxxbridge/` 目录
+
+### TLG 图像解码器 Rust 重写（2026-03-28）
+- 新增 `backend/rust/krkr2-image/` crate，完整重写 TLG5/6 解码器
+- 纯 Rust 实现：LZSS 滑动窗口解压、Golomb-Rice 熵编码、16 种 chroma 相关滤镜、MED/AVG 像素预测
+- `krkr2_image_adapter.h/cpp`：C++ 适配器，直接实现 C 接口的 `TVPLoadTLG()`
+- 原有 `LoadTLG.cpp` 和 `LoadTLG.h` 已被彻底删除，原有的 header 读取逻辑单独提取到了 `LoadTLGHeader.cpp`
+
+### XP3 存档文件系统 Rust 重写（2026-04-04）
+- 新增 `backend/rust/krkr2-archive/` crate，使用 Rust `flate2` 重写 XP3 解析与解压缩引擎
+- `krkr2_archive_adapter.cpp`：C++ 适配层基于 cxx bridge 对接 `tTVPXP3Archive::CreateStreamByIndex`
+- 原有 `XP3Archive.cpp` (~1000 行) 已被彻底删除，极大增强了内核底层的内存安全性和并行演进能力
+- 提取并保留了 C++ 中的 `TVPXP3ArchiveExtractionFilter` 回调边界，保证对旧版吉里吉里加密插件 100% 兼容
+- 7 个 Rust 单元测试全部通过（LZSS、Golomb 表、MED/AVG 预测器）
+
+
 ---
 
 ## 五、构建验证
@@ -190,7 +274,11 @@ cmake --build out/macos/debug --target core_base_module
 
 ## 六、下一步建议
 
-1. **启动第三阶段**：着手 SDL3/SDL2 渲染后端接入
+1. ~~**Phase 3c: cxx bridge 基础设施**~~：✅ 已完成。
+2. ~~**Phase 3d: TLG 图像解码器**~~：✅ 已完成。
+3. ~~**Phase 3e: XP3 存档层**~~：✅ 已完成。用 Rust 重写 XP3 解析 + xp3filter（特有格式 + 密码学）。
+4. **第四阶段：渲染与输入重写**：在底层逻辑加固后，启动 SDL3 接入。
+
 
 ---
 

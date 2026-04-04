@@ -1,0 +1,14 @@
+[package]
+name = "krkr2-encoding"
+version = "0.1.0"
+edition = "2021"
+description = "Character encoding conversion for KrKr2 engine (replaces CharacterSet.cpp, gbk2unicode.c, jis2unicode.c)"
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+encoding_rs = "0.8"
+
+[build-dependencies]
+cbindgen = "0.28"

@@ -22,7 +22,7 @@ set(VISUAL_SOURCE_FILES
     ${VISUAL_PATH}/LoadJXR.cpp
     ${VISUAL_PATH}/ImageFunction.cpp
     ${VISUAL_PATH}/tvpgl.cpp
-    ${VISUAL_PATH}/LoadTLG.cpp
+    ${VISUAL_PATH}/LoadTLGHeader.cpp
     ${VISUAL_PATH}/LayerTreeOwnerImpl.cpp
     ${VISUAL_PATH}/GraphicsLoadThread.cpp
     ${VISUAL_PATH}/LayerManager.cpp
@@ -54,6 +54,12 @@ set(VISUAL_HEADERS_DIR
 add_library(${PROJECT_NAME} STATIC ${VISUAL_SOURCE_FILES})
 target_include_directories(${PROJECT_NAME} PUBLIC ${VISUAL_HEADERS_DIR})
 target_link_libraries(${PROJECT_NAME} PUBLIC tjs2 PRIVATE core_base_module core_environ_module core_plugin_module core_sound_module core_utils_module)
+
+# Rust TLG decoder (krkr2-image crate) + C++ adapter
+if(TARGET krkr2_image_adapter)
+    target_link_libraries(${PROJECT_NAME} PRIVATE krkr2_image_adapter)
+    target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../../rust/krkr2-image/include)
+endif()
 
 target_link_libraries(${PROJECT_NAME} PRIVATE libbpg)
 

@@ -1,0 +1,17 @@
+[package]
+name = "krkr2-archive"
+version = "0.1.0"
+edition = "2021"
+description = "XP3 Archive parser and decompression stream for KrKr2 engine (replaces XP3Archive.cpp)"
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+cxx = "1.0"
+flate2 = "1.0"
+krkr2-bridge = { path = "../krkr2-bridge" }
+lazy_static = "1.4.0"
+
+[build-dependencies]
+cxx-build = "1.0"

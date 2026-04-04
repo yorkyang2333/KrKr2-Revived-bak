@@ -1,19 +1,37 @@
-# build target
-/**/cmake-build-android/
-/**/cmake-build-android-release/
-/**/cmake-build-android-debug/
-/**/build/
+# Build target
+/**/cmake-build-*/
+/**/build*/
 /**/out/
 /**/bin/
 
+# Rust
+/**/target/
+backend/rust/*/include/*.h
+
+# Vcpkg
+vcpkg_root/
+vcpkg_installed/
+.vcpkg-root
+
+# IDEs
+.agents/
 .idea/
 .vscode/
 .vs/
 .gradle/
 .act/
-
-local.properties
-
-java_pid*.hprof
 .DS_Store
+
+# Misc
+local.properties
+java_pid*.hprof
 *.pdb
+*.user
+*.user.*
+*.sln
+*.vcxproj
+*.filters
+*.dir/
+*.log
+*.bak
+*.tmp

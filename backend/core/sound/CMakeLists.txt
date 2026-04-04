@@ -15,7 +15,6 @@ set(SOUND_SOURCE_FILES
 #    ${SOUND_PATH}/WaveFormatConverter_SSE.cpp
     ${SOUND_PATH}/WaveIntf.cpp
     ${SOUND_PATH}/WaveLoopManager.cpp
-    ${SOUND_PATH}/WaveSegmentQueue.cpp
 #    ${SOUND_PATH}/xmmlib.cpp
 
     ${SOUND_PATH}/win32/CDDAImpl.cpp
@@ -34,8 +33,8 @@ set(SOUND_HEADERS_DIR
 )
 
 add_library(${PROJECT_NAME} STATIC ${SOUND_SOURCE_FILES})
-target_include_directories(${PROJECT_NAME} PUBLIC ${SOUND_HEADERS_DIR})
-target_link_libraries(${PROJECT_NAME} PUBLIC tjs2 PRIVATE core_base_module core_movie_module core_utils_module core_environ_module)
+target_include_directories(${PROJECT_NAME} PUBLIC ${SOUND_HEADERS_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../../rust/target/cxxbridge)
+target_link_libraries(${PROJECT_NAME} PUBLIC tjs2 PRIVATE core_base_module core_movie_module core_utils_module core_environ_module krkr2-audio)
 
 find_package(Vorbis CONFIG REQUIRED)
 find_package(Opus CONFIG REQUIRED)
