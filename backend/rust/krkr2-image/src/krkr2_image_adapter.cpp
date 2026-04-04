@@ -25,8 +25,8 @@ enum tTVPGraphicLoadMode {
 typedef int (*tTVPGraphicSizeCallback)(void *callbackdata, tjs_uint w,
                                        tjs_uint h, tTVPGraphicPixelFormat fmt);
 typedef void *(*tTVPGraphicScanLineCallback)(void *callbackdata, tjs_int y);
-typedef void (*tTVPMetaInfoPushCallback)(void *callbackdata, const ttstr &name,
-                                         const ttstr &value);
+typedef void (*tTVPMetaInfoPushCallback)(void *callbackdata, const TJS::tTJSString &name,
+                                         const TJS::tTJSString &value);
 
 // Include the cxx-generated bridge header
 #include "krkr2-image/src/lib.rs.h"

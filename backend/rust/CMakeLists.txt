@@ -87,3 +87,22 @@ target_include_directories(krkr2_image_adapter PUBLIC
 target_link_libraries(krkr2_image_adapter PUBLIC tjs2)
 target_link_libraries(krkr2_image_adapter PUBLIC krkr2-image)
 
+# ---------------------------------------------------------------------------
+# krkr2_archive_adapter: C++ adapter for the Rust XP3 parser
+# ---------------------------------------------------------------------------
+add_library(krkr2_archive_adapter STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/krkr2-archive/src/krkr2_archive_adapter.cpp
+)
+
+target_include_directories(krkr2_archive_adapter PUBLIC
+    ${KRKR2_CARGO_TARGET_DIR}/cxxbridge
+    ${CMAKE_CURRENT_SOURCE_DIR}/krkr2-bridge/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../core/base
+    ${CMAKE_CURRENT_SOURCE_DIR}/../core/base/impl
+    ${CMAKE_CURRENT_SOURCE_DIR}/../core/utils
+)
+
+# It will inherently depend on core_base_module for XP3Archive.h and MsgIntf.h
+# but we link it later in the main CMake tree to avoid circular deps during target setup
+target_link_libraries(krkr2_archive_adapter PUBLIC tjs2)
+target_link_libraries(krkr2_archive_adapter PUBLIC krkr2-archive)

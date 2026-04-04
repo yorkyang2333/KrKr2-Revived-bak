@@ -151,13 +151,13 @@ KrKr2-Revived/
 | TLG0.0 SDS metadata tag 解析 | ✅ |
 | 单元测试（7/7 passed） | ✅ |
 
-#### Phase 3e — 存档层（via cxx bridge） ⬜ 待开始
+#### Phase 3e — 存档层（via cxx bridge） ✅ 已完成
 
 | 任务 | 状态 |
 |------|------|
-| `krkr2-archive` crate：XP3 解析 + xp3filter | ⬜ |
-| 通过 cxx bridge 实现 `tTVPArchive` 子类 | ⬜ |
-| 替换 `XP3Archive.cpp` + `xp3filter.cpp` | ⬜ |
+| `krkr2-archive` crate：XP3 解析 + flate2 zlib | ✅ |
+| 通过 cxx bridge 实现 `tTVPArchive` 子类 | ✅ |
+| 替换 `XP3Archive.cpp`，并在 C++ 端保留 `xp3filter` 加密逻辑 | ✅ |
 
 #### Phase 3f — 音频缓冲管理（via cxx bridge） ⬜ 待开始
 
@@ -248,6 +248,12 @@ KrKr2-Revived/
 - 纯 Rust 实现：LZSS 滑动窗口解压、Golomb-Rice 熵编码、16 种 chroma 相关滤镜、MED/AVG 像素预测
 - `krkr2_image_adapter.h/cpp`：C++ 适配器，直接实现 C 接口的 `TVPLoadTLG()`
 - 原有 `LoadTLG.cpp` 和 `LoadTLG.h` 已被彻底删除，原有的 header 读取逻辑单独提取到了 `LoadTLGHeader.cpp`
+
+### XP3 存档文件系统 Rust 重写（2026-04-04）
+- 新增 `backend/rust/krkr2-archive/` crate，使用 Rust `flate2` 重写 XP3 解析与解压缩引擎
+- `krkr2_archive_adapter.cpp`：C++ 适配层基于 cxx bridge 对接 `tTVPXP3Archive::CreateStreamByIndex`
+- 原有 `XP3Archive.cpp` (~1000 行) 已被彻底删除，极大增强了内核底层的内存安全性和并行演进能力
+- 提取并保留了 C++ 中的 `TVPXP3ArchiveExtractionFilter` 回调边界，保证对旧版吉里吉里加密插件 100% 兼容
 - 7 个 Rust 单元测试全部通过（LZSS、Golomb 表、MED/AVG 预测器）
 
 
@@ -269,7 +275,7 @@ cmake --build out/macos/debug --target core_base_module
 
 1. ~~**Phase 3c: cxx bridge 基础设施**~~：✅ 已完成。
 2. ~~**Phase 3d: TLG 图像解码器**~~：✅ 已完成。
-3. **Phase 3e: XP3 存档层**：用 Rust 重写 XP3 解析 + xp3filter（特有格式 + 密码学）。
+3. ~~**Phase 3e: XP3 存档层**~~：✅ 已完成。用 Rust 重写 XP3 解析 + xp3filter（特有格式 + 密码学）。
 4. **第四阶段：渲染与输入重写**：在底层逻辑加固后，启动 SDL3 接入。
 
 

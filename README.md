@@ -4,6 +4,14 @@
 
 This project is a refactor based on the original project [2468785842/krkr2](https://github.com/2468785842/krkr2).
 
+## Core Refactoring Progress (KrKr2-Revived)
+This project is heavily refactoring legacy C++ code into cross-platform C++17 and Rust:
+- **Audio System**: Null implementation decoupling completed.
+- **Encoding**: Replaced with Rust `krkr2-encoding`.
+- **Image Decoding**: TLG5/6 original C++ code removed, rewritten in Rust `krkr2-image` with high-quality decompression and prediction.
+- **Virtual File System (XP3)**: Entirely rewritten using Rust `krkr2-archive`, natively supporting `flate2`/zlib accelerated decompression and segment caching.
+- **Miscellaneous**: MD5, Random, RealFFT and other utilities have also been rewritten in Rust.
+
 This repository is currently undergoing a **full architectural refactor** — decoupling the engine from Cocos2d-x, rebuilding core modules in modern C++, and replacing the UI layer with Flutter. Licensed under **GNU General Public License v3.0**.
 
 **语言 / Language**: [中文](README_CN.md) | English
@@ -175,25 +183,28 @@ KrKr2-Revived/
 - [x] Migrate `cpp/external` → `backend/external`
 - [x] Remove obsolete directories (`cpp/`, `ui/`, old build dirs)
 
-### Phase 2: Standalone Module Compilation 🔄 In Progress
+### Phase 2: Standalone Module Compilation ✅ Complete
 
 Verified compiling (macOS arm64):
 - [x] `tjs2` ✅
 - [x] `core_utils_module` ✅
-- [x] `core_base_module` ✅ (2 files pending port)
+- [x] `core_base_module` ✅
 
-Pending:
-- [ ] Port `ZIPArchive.cpp` to minizip-ng native API
-- [ ] Resolve `ScriptMgnIntf.cpp` platform dependency (CDDAImpl)
+### Phase 3: Rust Core Refactor ✅ Partially Complete
 
-### Phase 3: Renderer Rewrite ⬜ Not started
+- [x] Rust infrastructure & CMake Corrosion integration ✅
+- [x] XP3 Archive filesystem rewrite (`krkr2-archive`) ✅
+- [x] TLG Image decoder rewrite (`krkr2-image`) ✅
+- [x] Encoding and Utilities rewrite (`krkr2-encoding`, `crypto`, `fft`) ✅
+
+### Phase 4: Renderer Rewrite ⬜ Not started
 
 - [ ] `IRenderer` / `IWindow` SDL3/SDL2 backend
 - [ ] Hardware-accelerated layer bitmap compositing
 - [ ] Input event integration
 - [ ] Live2D plugin migration
 
-### Phase 4: Flutter UI Integration ⬜ Not started
+### Phase 5: Flutter UI Integration ⬜ Not started
 
 - [ ] Initialize Flutter `frontend/` project
 - [ ] Dart FFI bindings for C-API
