@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # build_all.sh - Interactive One-click build script for KrKr2-Revived
 
-set -e
+set -euo pipefail
 
 read_with_default() {
     local prompt="$1"
@@ -18,6 +18,81 @@ read_with_default() {
 
     printf -v "$result_var" '%s' "$value"
 }
+
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+ensure_command() {
+    local cmd="$1"
+    local hint="${2:-}"
+
+    if ! command_exists "$cmd"; then
+        echo "❌ Required command not found: $cmd"
+        if [ -n "$hint" ]; then
+            echo "   $hint"
+        fi
+        exit 1
+    fi
+}
+
+bootstrap_vcpkg() {
+    local vcpkg_root="$1"
+    local bootstrap_script=""
+
+    if [ -x "$vcpkg_root/vcpkg" ]; then
+        return 0
+    fi
+
+    if [ -f "$vcpkg_root/bootstrap-vcpkg.sh" ]; then
+        bootstrap_script="$vcpkg_root/bootstrap-vcpkg.sh"
+        echo "🔧 Bootstrapping vcpkg..."
+        chmod +x "$bootstrap_script"
+        "$bootstrap_script" -disableMetrics
+        return 0
+    fi
+
+    if [ -f "$vcpkg_root/bootstrap-vcpkg.bat" ]; then
+        bootstrap_script="$vcpkg_root/bootstrap-vcpkg.bat"
+        echo "🔧 Bootstrapping vcpkg..."
+        cmd //c "$bootstrap_script" -disableMetrics
+        return 0
+    fi
+
+    echo "❌ vcpkg bootstrap script not found in $vcpkg_root"
+    exit 1
+}
+
+prepare_vcpkg() {
+    local repo_root="$1"
+    local vcpkg_root="$repo_root/vcpkg_root"
+    local vcpkg_git_url="https://github.com/microsoft/vcpkg.git"
+
+    if [ ! -d "$vcpkg_root/.git" ]; then
+        if [ -e "$vcpkg_root" ]; then
+            echo "❌ $vcpkg_root already exists, but it is not a valid vcpkg git checkout."
+            exit 1
+        fi
+
+        echo "📥 Cloning vcpkg into $vcpkg_root ..."
+        git clone "$vcpkg_git_url" "$vcpkg_root"
+    else
+        echo "📦 Reusing existing vcpkg checkout: $vcpkg_root"
+    fi
+
+    bootstrap_vcpkg "$vcpkg_root"
+
+    export VCPKG_ROOT="$vcpkg_root"
+    echo "✅ VCPKG_ROOT is ready: $VCPKG_ROOT"
+}
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+ensure_command git "Please install Git first."
+ensure_command cmake "Please install CMake 3.28 or newer."
+ensure_command flutter "Please install Flutter and make sure it is in PATH."
+
+prepare_vcpkg "$ROOT_DIR"
 
 echo "=================================================="
 echo "    KrKr2-Revived: Auto-Build Pipeline            "
@@ -81,9 +156,6 @@ echo ""
 
 echo "📱 [Step 2/2]: Building Flutter Frontend UI ($BUILD_PLATFORM)..."
 echo "--------------------------------------------------"
-
-# Save project root before cd-ing into frontend
-ROOT_DIR="$(pwd)"
 
 echo "📦 Packing engine backend static libraries..."
 mkdir -p "$ROOT_DIR/frontend/macos/krkr2_libs"
