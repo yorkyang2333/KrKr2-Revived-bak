@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ffi' as ffi;
 import 'dart:io';
 import 'package:ffi/ffi.dart';
@@ -9,6 +10,8 @@ class EngineController {
   late KrKr2Bindings _bindings;
   late ffi.DynamicLibrary _dylib;
   final List<String> logs = [];
+  final StreamController<String> _logStreamController = StreamController<String>.broadcast();
+  Stream<String> get logStream => _logStreamController.stream;
   
   // Texture and Sync
   static const MethodChannel _channel = MethodChannel('krkr2/texture');
@@ -37,7 +40,7 @@ class EngineController {
     
     // Set log callback
     final logCallback = ffi.NativeCallable<
-        ffi.Void Function(ffi.Int32 level, ffi.Pointer<ffi.Char> message)>.listener(_onLogReceived);
+        ffi.Void Function(ffi.Int level, ffi.Pointer<ffi.Char> message)>.listener(_onLogReceived);
     _bindings.krkr2_set_log_callback(logCallback.nativeFunction);
     
     // Register Texture
@@ -48,11 +51,11 @@ class EngineController {
       
       // 2. Map Swift @cdecl functions to C function pointers
       final rendererInterface = calloc<krkr2_renderer_interface_t>();
-      rendererInterface.ref.create_texture = _dylib.lookup<ffi.NativeFunction<krkr2_texture_t Function(ffi.Int32, ffi.Int32, ffi.Int32)>>('swift_krkr2_create_texture');
-      rendererInterface.ref.update_texture = _dylib.lookup<ffi.NativeFunction<ffi.Void Function(krkr2_texture_t, ffi.Pointer<ffi.Void>, ffi.Int32)>>('swift_krkr2_update_texture');
+      rendererInterface.ref.create_texture = _dylib.lookup<ffi.NativeFunction<krkr2_texture_t Function(ffi.Int, ffi.Int, ffi.Int)>>('swift_krkr2_create_texture');
+      rendererInterface.ref.update_texture = _dylib.lookup<ffi.NativeFunction<ffi.Void Function(krkr2_texture_t, ffi.Pointer<ffi.Void>, ffi.Int)>>('swift_krkr2_update_texture');
       rendererInterface.ref.destroy_texture = _dylib.lookup<ffi.NativeFunction<ffi.Void Function(krkr2_texture_t)>>('swift_krkr2_destroy_texture');
       rendererInterface.ref.clear = _dylib.lookup<ffi.NativeFunction<ffi.Void Function()>>('swift_krkr2_clear');
-      rendererInterface.ref.draw_texture = _dylib.lookup<ffi.NativeFunction<ffi.Void Function(krkr2_texture_t, ffi.Int32, ffi.Int32, ffi.Int32, ffi.Int32)>>('swift_krkr2_draw_texture');
+      rendererInterface.ref.draw_texture = _dylib.lookup<ffi.NativeFunction<ffi.Void Function(krkr2_texture_t, ffi.Int, ffi.Int, ffi.Int, ffi.Int)>>('swift_krkr2_draw_texture');
       rendererInterface.ref.present = _dylib.lookup<ffi.NativeFunction<ffi.Void Function()>>('swift_krkr2_present');
       
       // 3. Inject them into Engine C-API
@@ -62,9 +65,16 @@ class EngineController {
 
   void _onLogReceived(int level, ffi.Pointer<ffi.Char> message) {
     if (message != ffi.nullptr) {
-      final text = message.cast<Utf8>().toDartString();
-      logs.add('[$level] $text');
-      print('Engine Log: $text');
+      try {
+        final text = message.cast<Utf8>().toDartString();
+        final logEntry = '[$level] $text';
+        logs.add(logEntry);
+        _logStreamController.add(logEntry);
+        print('Engine Log: $text');
+      } catch (e) {
+        // Fallback for non-UTF8 logs without crashing the app
+        print('Engine Log: [Malformed UTF-8 string]');
+      }
     }
   }
 

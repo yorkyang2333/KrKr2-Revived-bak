@@ -35,3 +35,21 @@ java_pid*.hprof
 *.log
 *.bak
 *.tmp
+
+# Libraries & Binaries
+*.a
+*.dylib
+*.so
+*.dll
+
+# Flutter / Dart
+/.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+
+# macOS / iOS build
+Pods/
+.symlinks/

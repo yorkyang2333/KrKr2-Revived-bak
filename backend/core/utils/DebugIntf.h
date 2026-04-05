@@ -22,6 +22,7 @@ extern bool TVPAutoClearLogOnError;
 extern bool TVPLoggingToFile;
 
 extern void TVPSetOnLog(void (*func)(const ttstr &line));
+extern void TVPSetPlatformOnLog(void (*func)(const ttstr &line));
 
 TJS_EXP_FUNC_DEF(void, TVPAddLog, (const ttstr &line));
 

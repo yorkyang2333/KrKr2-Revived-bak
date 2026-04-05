@@ -1,5 +1,8 @@
 #include "../../../include/krkr2_api.h"
+#include "../../../include/krkr2_renderer.h"
 #include <string>
+#include <vector>
+#include <SDL3/SDL.h>
 
 #include "tjsCommHead.h"
 #include "tjsString.h"
@@ -7,6 +10,7 @@
 #include "DebugIntf.h"
 #include "../../../core/visual/IWindow.h"
 #include "../../../core/visual/IRenderer.h"
+#include "../../../core/visual/GraphicsLoaderIntf.h"
 
 // Basic headless window implementation
 class KrKr2HeadlessWindow : public IWindow {
@@ -88,12 +92,20 @@ extern "C" {
 
 void krkr2_set_log_callback(krkr2_log_callback_t callback) {
     g_logCallback = callback;
-    TVPSetOnLog(krkr2_log_hook);
+    TVPSetPlatformOnLog(krkr2_log_hook);
 }
 
 void krkr2_set_game_path(const char* path) {
     if (path) {
         g_gamePath = path;
+    }
+}
+
+krkr2_renderer_interface_t g_krkr2_renderer_interface = {0};
+
+void krkr2_set_renderer_interface(krkr2_renderer_interface_t* renderer) {
+    if (renderer) {
+        g_krkr2_renderer_interface = *renderer;
     }
 }
 
@@ -103,7 +115,13 @@ bool krkr2_init(int argc, char** argv) {
     }
     Application->ArgC = argc;
     Application->ArgV = argv;
-    return Application->StartApplication(ttstr(g_gamePath.c_str()));
+    ttstr path = TJS_W("");
+    if (!g_gamePath.empty()) {
+        path = ttstr(g_gamePath.c_str());
+    } else if (argc > 1 && argv[1]) {
+        path = ttstr(argv[1]);
+    }
+    return Application->StartApplication(path);
 }
 
 void krkr2_shutdown() {
@@ -146,3 +164,171 @@ void krkr2_get_window_size(int* width, int* height) {
 }
 
 } // extern "C"
+
+#include <SDL3/SDL.h>
+
+tjs_uint32 TVPGetRoughTickCount32() {
+    return (tjs_uint32)SDL_GetTicks();
+}
+
+
+namespace TJS {
+    void TVPConsoleLog(const tTJSString &str) {
+        // Console log stub
+    }
+}
+
+void tTVPGraphicHandlerType::Save(const ttstr &storagename, const ttstr &mode, const iTVPBaseBitmap *image, iTJSDispatch2 *meta) {
+    // Stub
+}
+
+void tTVPGraphicHandlerType::Header(TJS::tTJSBinaryStream *src, iTJSDispatch2 **dic) {
+    // Stub
+}
+
+// IndividualConfigManager Stubs
+#include "../../../core/environ/ConfigManager/IndividualConfigManager.h"
+#include "../../../core/environ/ConfigManager/LocaleConfigManager.h"
+
+class tTJSNC_PhaseVocoder : public tTJSNativeClass {
+public:
+    tTJSNC_PhaseVocoder();
+};
+
+IndividualConfigManager *IndividualConfigManager::GetInstance() {
+    static IndividualConfigManager instance;
+    return &instance;
+}
+template <> bool IndividualConfigManager::GetValue<bool>(const std::string &name, const bool &defVal) { return defVal; }
+template <> int IndividualConfigManager::GetValue<int>(const std::string &name, const int &defVal) { return defVal; }
+template <> std::string IndividualConfigManager::GetValue<std::string>(const std::string &name, const std::string &defVal) { return defVal; }
+template <> float IndividualConfigManager::GetValue<float>(const std::string &name, const float &defVal) { return defVal; }
+std::string IndividualConfigManager::GetFilePath() { return ""; }
+std::vector<std::string> IndividualConfigManager::GetCustomArgumentsForPush() { return {}; }
+bool IndividualConfigManager::CheckExistAt(const std::string &folder) { return false; }
+bool IndividualConfigManager::CreatePreferenceAt(const std::string &folder) { return false; }
+bool IndividualConfigManager::UsePreferenceAt(const std::string &folder) { return false; }
+void IndividualConfigManager::Clear() {}
+
+LocaleConfigManager *LocaleConfigManager::GetInstance() {
+    static LocaleConfigManager instance;
+    return &instance;
+}
+const std::string& LocaleConfigManager::GetText(const std::string &key) { 
+    static std::string empty;
+    return empty; 
+}
+std::string LocaleConfigManager::GetFilePath() { return ""; }
+
+void TVPSetSystemEventDisabledState(bool disabled) {}
+void TVPCauseAtInstallExtensionClass(TJS::iTJSDispatch2*) {}
+tTJSNativeClass* TVPCreateNativeClass_VideoOverlay() { return new tTJSNativeClass(TJS_W("VideoOverlay")); }
+tTJSNativeClass* TVPCreateNativeClass_CDDASoundBuffer() { return new tTJSNativeClass(TJS_W("CDDASoundBuffer")); }
+tTJSNativeClass* TVPCreateNativeClass_MIDISoundBuffer() { return new tTJSNativeClass(TJS_W("MIDISoundBuffer")); }
+tTJSNativeClass* TVPCreateNativeClass_WaveSoundBuffer() { return new tTJSNativeClass(TJS_W("WaveSoundBuffer")); }
+void TVPFreeArchiveHandlePoolByPointer(void*) {}
+
+tTJSNC_PhaseVocoder::tTJSNC_PhaseVocoder() : tTJSNativeClass(TJS_W("PhaseVocoder")) {}
+
+#include "../../../core/visual/RenderManager.h"
+
+iTVPRenderMethod* iTVPRenderManager::GetRenderMethod(int, bool, int) { return nullptr; }
+
+void tTVPGraphicHandlerType::Load(void *formatdata, void *callbackdata,
+          tTVPGraphicSizeCallback sizecallback,
+          tTVPGraphicScanLineCallback scanlinecallback,
+          tTVPMetaInfoPushCallback metainfopushcallback,
+          TJS::tTJSBinaryStream *src, tjs_int32 keyidx,
+          tTVPGraphicLoadMode mode) {}
+
+LocaleConfigManager::LocaleConfigManager() {}
+ttstr TVPGetPlatformName() { return ttstr(TJS_W("MacOS_Headless")); }
+std::string TVPGetPackageVersionString() { return "1.0.0"; }
+void TVPOpenPatchLibUrl() {}
+iTVPRenderManager* TVPGetRenderManager() { return nullptr; }
+int TVPShowSimpleMessageBox(const TJS::tTJSString&, const TJS::tTJSString&, const std::vector<TJS::tTJSString>&) { return 0; }
+void* TVPGetCachedArchiveHandle(void*, const TJS::tTJSString&) { return nullptr; }
+void TVPReleaseCachedArchiveHandle(void*, TJS::tTJSBinaryStream*) {}
+tTJSNativeClass* TVPCreateNativeClass_Layer() { return new tTJSNativeClass(TJS_W("Layer")); }
+tTJSNativeClass* TVPCreateNativeClass_System() { return new tTJSNativeClass(TJS_W("System")); }
+tTJSNativeClass* TVPCreateNativeClass_Plugins() { return new tTJSNativeClass(TJS_W("Plugins")); }
+tTJSNativeClass* TVPCreateNativeClass_MenuItem() { return new tTJSNativeClass(TJS_W("MenuItem")); }
+bool TVPIsSoftwareRenderManager() { return false; }
+iTVPRenderManager* TVPGetSoftwareRenderManager() { return nullptr; }
+bool TVPGetSystemEventDisabledState() { return false; }
+
+extern "C" void TVPUtf8ToWideCharString_C(const char*, char16_t*) asm("_TVPUtf8ToWideCharString");
+void TVPUtf8ToWideCharString(const char* in, char16_t* out) {
+    TVPUtf8ToWideCharString_C(in, out);
+}
+
+// Second batch of missing stubs
+#include <functional>
+namespace TJS { class tTJSVariant; class tTJSString; }
+struct TVPMemoryInfo;
+
+bool TVPAutoSaveBookMark = false;
+int TVPSegmentCacheLimit = 0;
+bool TVPProcessContinuousHandlerEventFlag = true;
+ttstr TVPGetOSName() { return ttstr(TJS_W("macOS")); }
+void TVPLoadPVRv3(TJS::tTJSBinaryStream*, const std::function<void(const TJS::tTJSString&, const TJS::tTJSVariant&)>&) {}
+bool TVPSelectFile(TJS::iTJSDispatch2*) { return false; }
+void tvpLoadPlugins() {}
+void TVPInvokeEvents() {}
+void TVPEventReceived() {}
+void TVPCallDeliverAllEventsOnIdle() {}
+void TVPBreathe() {}
+bool TVPGetBreathing() { return false; }
+void TVPBeginContinuousEvent() {}
+void TVPEndContinuousEvent() {}
+void TVPGetMemoryInfo(TVPMemoryInfo&) {}
+unsigned int TVPToActualColor(unsigned int c) { return c; }
+unsigned int TVPFromActualColor(unsigned int c) { return c; }
+void TVPExitApplication(int) {}
+
+#include <filesystem>
+#include <fstream>
+#include <vector>
+
+bool TVPCreateFolders(const ttstr &folder) {
+    try {
+        return std::filesystem::create_directories(folder.AsStdString());
+    } catch (...) {
+        return false;
+    }
+}
+
+bool TVPWriteDataToFile(const ttstr &filepath, const void *data, unsigned int len) {
+    std::ofstream os(filepath.AsStdString(), std::ios::binary);
+    if(!os.is_open()) return false;
+    os.write(reinterpret_cast<const char*>(data), len);
+    return os.good();
+}
+
+const std::vector<std::string> &TVPGetApplicationHomeDirectory() {
+    static std::vector<std::string> ret{"/tmp/"};
+    return ret;
+}
+
+
+#include <sys/stat.h>
+#include "Platform.h"
+
+bool TVP_stat(const char *name, tTVP_stat &s) {
+    struct stat my_stat;
+    if (stat(name, &my_stat) == 0) {
+        s.st_mode = my_stat.st_mode;
+        s.st_size = my_stat.st_size;
+        s.st_atime = my_stat.st_atimespec.tv_sec;
+        s.st_mtime = my_stat.st_mtimespec.tv_sec;
+        s.st_ctime = my_stat.st_ctimespec.tv_sec;
+        return true;
+    }
+    return false;
+}
+
+bool TVP_stat(const tjs_char *name, tTVP_stat &s) {
+    std::string utf8_name = tTJSNarrowStringHolder(name).Buf;
+    return TVP_stat(utf8_name.c_str(), s);
+}
+

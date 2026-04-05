@@ -20,7 +20,9 @@
 
 #include "Exception.h"
 // #include "Resource.h"
-#include "SystemControl.h"
+// #include "SystemControl.h"
+#include "../utils/win32/TVPTimer.h"
+#include "EventIntf.h"
 // #include "MouseCursor.h"
 #include "SystemImpl.h"
 #include "WaveImpl.h"
@@ -30,9 +32,9 @@
 #include <thread>
 #include "ConfigManager/LocaleConfigManager.h"
 #include "StorageIntf.h"
-extern "C" {
-#include <libavutil/avstring.h>
-}
+#ifdef ANDROID
+#include "AndroidUtils.h"
+#endif
 #include "TVPColor.h"
 #include "FontImpl.h"
 
@@ -342,7 +344,6 @@ bool tTVPApplication::StartApplication(ttstr path) {
             return true; // version information dialog box;
 
         SetTitle(TVPKirikiri.operator const tjs_char *());
-        TVPSystemControl = new tTVPSystemControl();
         // Check digitizer
         CheckDigitizer();
 
@@ -351,6 +352,7 @@ bool tTVPApplication::StartApplication(ttstr path) {
 
         TVPInitializeStartupScript();
         _project_startup = true;
+        return true;
     } catch(const EAbort &) {
         // nothing to do
     } catch(const Exception &exception) {
@@ -496,9 +498,7 @@ void tTVPApplication::Run() {
         }
         //	TVPBreathe();
         ProcessMessages();
-        if(TVPSystemControl)
-            TVPSystemControl->SystemWatchTimerTimer();
-        //		TVPDeliverWindowUpdateEvents(); // from
+        // TVPDeliverWindowUpdateEvents(); // from
         // SystemWatchTimerTimer
     } catch(const EAbort &) {
         // nothing to do
@@ -554,6 +554,7 @@ void tTVPApplication::ProcessMessages() {
         std::get<2>(it)();
     }
     TVPTimer::ProgressAllTimer();
+    TVPDeliverAllEvents();
 }
 
 #if 0
@@ -742,7 +743,7 @@ void tTVPApplication::OnActivate() {
         return;
 
     //	TVPRestoreFullScreenWindowAtActivation();
-    TVPResetVolumeToAllSoundBuffer();
+    // TVPResetVolumeToAllSoundBuffer();
     TVPUnlockSoundMixer();
 
     // trigger System.onActivate event
@@ -762,7 +763,7 @@ void tTVPApplication::OnDeactivate() {
     TVPDeliverCompactEvent(TVP_COMPACT_LEVEL_DEACTIVATE);
 
     // set sound volume
-    TVPResetVolumeToAllSoundBuffer();
+    // TVPResetVolumeToAllSoundBuffer();
     TVPLockSoundMixer();
 
     // trigger System.onDeactivate event
@@ -774,10 +775,6 @@ void tTVPApplication::OnDeactivate() {
 
 void tTVPApplication::OnExit() {
     TVPUninitScriptEngine();
-
-    delete TVPSystemControl;
-    TVPSystemControl = nullptr;
-
     CloseConsole();
 }
 
@@ -863,8 +860,9 @@ void TVPDeleteAcceleratorKeyTable( HWND hWnd ) {
 
 void TVPInitWindowOptions() {}
 
-std::string ExtractFileDir(const std::string &FileName) {
-    return av_dirname((char *)FileName.c_str());
+std::string ExtractFileDir(const std::string& FileName) {
+    size_t pos = FileName.find_last_of("\\/");
+    return (std::string::npos == pos) ? "" : FileName.substr(0, pos);
 }
 
 unsigned long ColorToRGB(unsigned int col) {

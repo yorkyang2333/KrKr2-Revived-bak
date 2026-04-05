@@ -2,41 +2,69 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  // Brand color scheme
-  static const Color seedColor = Colors.deepPurple;
-  
-  static ThemeData get lightTheme {
+  // As requested: Android native Material Design dark blue (e.g. Pixel Default Blue)
+  static const Color defaultSeedColor = Color(0xFF1E88E5);
+
+  static ThemeData lightTheme(ColorScheme? dynamicLight) {
+    final scheme = dynamicLight ?? ColorScheme.fromSeed(
+      seedColor: defaultSeedColor,
+      brightness: Brightness.light,
+    );
+
     return ThemeData(
+      colorScheme: scheme,
       useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: seedColor,
-        brightness: Brightness.light,
-      ),
       textTheme: GoogleFonts.interTextTheme(ThemeData.light().textTheme),
-      appBarTheme: const AppBarTheme(
-        centerTitle: true,
+      appBarTheme: AppBarTheme(
+        backgroundColor: scheme.surface,
+        foregroundColor: scheme.onSurface,
         elevation: 0,
+        scrolledUnderElevation: 2,
+      ),
+      cardTheme: const CardThemeData(
+        elevation: 1,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(24)),
+        ),
+        clipBehavior: Clip.antiAlias,
+      ),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        elevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
       ),
     );
   }
 
-  static ThemeData get darkTheme {
+  static ThemeData darkTheme(ColorScheme? dynamicDark) {
+    final scheme = dynamicDark ?? ColorScheme.fromSeed(
+      seedColor: defaultSeedColor,
+      brightness: Brightness.dark,
+    );
+
     return ThemeData(
+      colorScheme: scheme,
       useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: seedColor,
-        brightness: Brightness.dark,
-      ),
       textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
-      scaffoldBackgroundColor: const Color(0xFF121212),
-      appBarTheme: const AppBarTheme(
-        centerTitle: true,
+      appBarTheme: AppBarTheme(
+        backgroundColor: scheme.surface,
+        foregroundColor: scheme.onSurface,
         elevation: 0,
-        backgroundColor: Color(0xFF1E1E1E),
+        scrolledUnderElevation: 2,
       ),
-      floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: Colors.deepPurpleAccent,
-        foregroundColor: Colors.white,
+      cardTheme: const CardThemeData(
+        elevation: 1,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(24)),
+        ),
+        clipBehavior: Clip.antiAlias,
+      ),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        elevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
       ),
     );
   }

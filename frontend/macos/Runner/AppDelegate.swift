@@ -91,10 +91,11 @@ public func swiftKrKr2DrawTexture(tex: UnsafeMutableRawPointer?, x: Int32, y: In
 class AppDelegate: FlutterAppDelegate {
   override func applicationDidFinishLaunching(_ notification: Notification) {
     let controller = mainFlutterWindow?.contentViewController as! FlutterViewController
-    globalTextureRegistry = controller.engine.textureRegistry
+    let registrar = controller.registrar(forPlugin: "KrKr2Texture")
+    globalTextureRegistry = registrar.textures
     
     // Setup MethodChannel for Texture Initialization from Dart
-    let channel = FlutterMethodChannel(name: "krkr2/texture", binaryMessenger: controller.engine.binaryMessenger)
+    let channel = FlutterMethodChannel(name: "krkr2/texture", binaryMessenger: registrar.messenger)
     channel.setMethodCallHandler { (call, result) in
         if call.method == "initTexture" {
             let texture = KrKr2Texture()
@@ -107,6 +108,7 @@ class AppDelegate: FlutterAppDelegate {
     }
     
     super.applicationDidFinishLaunching(notification)
+    NSApp.activate(ignoringOtherApps: true)
   }
 
   override func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

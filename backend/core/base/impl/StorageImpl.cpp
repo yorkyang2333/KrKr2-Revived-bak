@@ -458,12 +458,7 @@ void TVPPreNormalizeStorageName(ttstr &name) {
 //---------------------------------------------------------------------------
 static tjs_int TVPProcessID;
 
-static void TVPClearAutoPathCache() {
-    TVPAutoPathCache.Clear();
-    TVPAutoPathTable.Clear();
-    AutoPathTableInit = false;
-}
-
+// TVPAutoPathCache is cleared by TVPClearAutoPathCache() in StorageIntf.cpp
 //---------------------------------------------------------------------------
 TJS_EXP_FUNC_DEF(void, TVPAutoMountArchives, (const ttstr &projectDir)) {
     ttstr folder = projectDir;

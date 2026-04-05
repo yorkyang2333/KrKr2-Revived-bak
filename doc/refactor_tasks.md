@@ -1,6 +1,6 @@
 # KrKr2-Revived 重构进度文档
 
-> 最后更新：2026-04-04
+> 最后更新：2026-04-05
 
 ---
 
@@ -193,8 +193,11 @@ KrKr2-Revived/
 | `flutter create` 初始化 `frontend/` 工程 | ✅ |
 | Dart FFI 绑定 C-API | ✅ |
 | 实现 Flutter Texture 渲染（Metal/GL/Vulkan 共享纹理） | ✅ |
-| 用 Flutter 重写主菜单、控制台、文件选择器 | ✅ |
+| 用 Flutter 重写主菜单、控制台、文件选择器 | ⬜ |
 | GitHub Actions CI/CD 全平台自动编译打包 | ⬜ |
+| 修复 `build_all.sh` 路径 Bug（`cd frontend` 后 `find/mkdir` 路径失效） | ✅ |
+| 修复 Xcode 未链接后端静态库与缺失符号（引入 `ForceFeedback` 框架、补全平台空实现、添加 brotli） | ✅ |
+| 成功链接并执行 macOS Headless 构建，无依赖挂起 | ✅ |
 
 ---
 

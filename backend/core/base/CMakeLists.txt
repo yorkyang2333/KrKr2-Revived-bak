@@ -15,10 +15,12 @@ set(BASE_SOURCE_FILES
     ${BASE_PATH}/TextStream.cpp
     ${BASE_PATH}/UtilStreams.cpp
     ${BASE_PATH}/XP3CryptoRegistry.cpp
-    # XP3Archive.cpp → replaced by Rust krkr2-archive crate & krkr2_archive_adapter
     ${BASE_PATH}/ZIPArchive.cpp
     ${BASE_PATH}/KAGParser.cpp
     ${BASE_PATH}/MsgIntf.cpp
+    ${BASE_PATH}/impl/StorageImpl.cpp
+    ${BASE_PATH}/impl/SysInitImpl.cpp
+    ${BASE_PATH}/impl/NativeEventQueue.cpp
 )
 
 set(BASE_HEADERS_DIR

@@ -3,6 +3,7 @@ import 'engine_controller.dart';
 import 'ui/theme.dart';
 import 'ui/main_menu.dart';
 import 'ui/console_view.dart';
+import 'package:dynamic_color/dynamic_color.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,12 +15,25 @@ class KrKr2App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'KrKr2-Revived',
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system, // Fully supports auto light/dark toggle
-      home: const MainMenuScreen(),
+    return DynamicColorBuilder(
+      builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
+        return MaterialApp(
+          title: 'KrKr2 Revived',
+          theme: AppTheme.lightTheme(lightDynamic),
+          darkTheme: AppTheme.darkTheme(darkDynamic),
+          themeMode: ThemeMode.system, // Fully supports auto light/dark toggle
+          home: Builder(
+            builder: (context) => MainMenuScreen(
+              onGameSelected: (path) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => KrKr2GameScreen(gamePath: path)),
+                );
+              },
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -44,18 +58,25 @@ class _KrKr2GameScreenState extends State<KrKr2GameScreen> {
   }
 
   Future<void> _initEngine() async {
-    // Wait for the FFI and Texture bindings to set up
-    await _engine.initialize();
-    
-    // Pass the user-selected game path into the krkr2_init function
-    _engine.startEngine(widget.gamePath);
+    try {
+      print('[Flutter] Starting _initEngine...');
+      // Wait for the FFI and Texture bindings to set up
+      await _engine.initialize();
+      print('[Flutter] Engine initialized!');
+      
+      // Pass the user-selected game path into the krkr2_init function
+      bool ready = _engine.startEngine(widget.gamePath);
+      print('[Flutter] Engine started! Result: $ready');
 
-    // Start engine ticking loop (sync to Flutter display refresh)
-    _engine.startTicker();
-    
-    setState(() {
-      _isEngineReady = true;
-    });
+      // Start engine ticking loop (sync to Flutter display refresh)
+      _engine.startTicker();
+      
+      setState(() {
+        _isEngineReady = true;
+      });
+    } catch (e, st) {
+      print('[Flutter] initEngine EXCEPTION: $e\n$st');
+    }
   }
 
   @override

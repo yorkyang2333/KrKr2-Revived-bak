@@ -13,6 +13,7 @@ set(VISUAL_SOURCE_FILES
     ${VISUAL_PATH}/RectItf.cpp
     ${VISUAL_PATH}/VideoOvlIntf.cpp
     ${VISUAL_PATH}/LayerBitmapIntf.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../platform/legacy_cocos2d/visual/impl/LayerBitmapImpl.cpp
     ${VISUAL_PATH}/FontImpl.cpp
 #     ${VISUAL_PATH}/RenderManager.cpp
     ${VISUAL_PATH}/LoadJPEG.cpp
@@ -40,6 +41,7 @@ set(VISUAL_SOURCE_FILES
     ${VISUAL_PATH}/BitmapLayerTreeOwner.cpp
     ${VISUAL_PATH}/BitmapIntf.cpp
     ${VISUAL_PATH}/argb.cpp
+    ${VISUAL_PATH}/BitmapInfomation.cpp
 
     ${VISUAL_PATH}/gl/blend_function.cpp
     ${VISUAL_PATH}/gl/ResampleImage.cpp

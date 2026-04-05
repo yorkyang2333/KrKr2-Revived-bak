@@ -7,7 +7,7 @@ add_library(${PROJECT_NAME} INTERFACE)
 
 add_subdirectory(tjs2)
 add_subdirectory(base)
-# add_subdirectory(environ)
+add_subdirectory(environ)
 # add_subdirectory(extension)
 # add_subdirectory(plugin)
 # add_subdirectory(movie)
@@ -18,7 +18,7 @@ add_subdirectory(utils)
 target_link_libraries(${PROJECT_NAME} INTERFACE
         tjs2
         core_base_module
-#         core_environ_module
+        core_environ_module
 #         core_extension_module
 #         core_plugin_module
 #         core_movie_module

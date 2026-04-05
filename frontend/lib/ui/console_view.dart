@@ -23,22 +23,27 @@ class _ConsoleViewState extends State<ConsoleView> {
         children: [
           _buildDragHandle(),
           Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              itemCount: _engine.logs.length,
-              itemBuilder: (context, index) {
-                final logLine = _engine.logs[index];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 4.0),
-                  child: Text.rich(
-                    _colorizeLog(logLine),
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          fontFamily: 'monospace',
-                        ),
-                  ),
+            child: StreamBuilder<String>(
+              stream: _engine.logStream,
+              builder: (context, snapshot) {
+                return ListView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  itemCount: _engine.logs.length,
+                  itemBuilder: (context, index) {
+                    final logLine = _engine.logs[index];
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 4.0),
+                      child: Text.rich(
+                        _colorizeLog(logLine),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              fontFamily: 'monospace',
+                            ),
+                      ),
+                    );
+                  },
                 );
-              },
+              }
             ),
           ),
         ],

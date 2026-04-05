@@ -73,18 +73,22 @@ static void TVPLoadGraphicRouter(void *formatdata, void *callbackdata,
            header[3] <= 0xEF) {
             return CALL_LOAD_FUNC(TVPLoadJPEG);
         }
+        /*
         if(!memcmp(header, "BPG", 3)) {
             return CALL_LOAD_FUNC(TVPLoadBPG);
         }
+        */
         if(!memcmp(header, "RIFF", 4) && !memcmp(header + 8, "WEBPVP8", 7)) {
             return CALL_LOAD_FUNC(TVPLoadWEBP);
         }
+        /*
         if(!memcmp(header, "\x49\x49\xbc\x01", 4)) {
             return CALL_LOAD_FUNC(TVPLoadJXR);
         }
         if(!memcmp(header, "PVR\3", 4)) {
             return CALL_LOAD_FUNC(TVPLoadPVRv3);
         }
+        */
 #undef CALL_LOAD_FUNC
     }
     TVPThrowExceptionMessage(TVPImageLoadError, TJS_W("Invalid image"));
@@ -110,18 +114,22 @@ static void TVPLoadHeaderRouter(void *formatdata, tTJSBinaryStream *src,
            header[3] <= 0xEF) {
             return CALL_LOAD_FUNC(TVPLoadHeaderJPG);
         }
+        /*
         if(!memcmp(header, "BPG", 3)) {
             return CALL_LOAD_FUNC(TVPLoadHeaderBPG);
         }
+        */
         if(!memcmp(header, "RIFF", 4) && !memcmp(header + 8, "WEBPVP8", 7)) {
             return CALL_LOAD_FUNC(TVPLoadHeaderWEBP);
         }
+        /*
         if(!memcmp(header, "\x49\x49\xbc\x01", 4)) {
             return CALL_LOAD_FUNC(TVPLoadHeaderJXR);
         }
         if(!memcmp(header, "PVR\3", 4)) {
             return CALL_LOAD_FUNC(TVPLoadHeaderPVRv3);
         }
+        */
 #undef CALL_LOAD_FUNC
     }
     TVPThrowExceptionMessage(TVPImageLoadError, TJS_W("Invalid image"));
@@ -169,9 +177,11 @@ public:
         Handlers.push_back(tTVPGraphicHandlerType(
             TJS_W(".pvr"), TVPLoadGraphicRouter, TVPLoadHeaderRouter, nullptr,
             nullptr, nullptr));
+        /*
         Handlers.push_back(tTVPGraphicHandlerType(
             TJS_W(".jxr"), TVPLoadGraphicRouter, TVPLoadHeaderRouter,
             TVPSaveAsJXR, TVPAcceptSaveAsJXR, nullptr));
+        */
         Handlers.push_back(tTVPGraphicHandlerType(
             TJS_W(".bpg"), TVPLoadGraphicRouter, TVPLoadHeaderRouter, nullptr,
             nullptr, nullptr));

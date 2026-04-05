@@ -78,6 +78,7 @@ tTVPAtExit TVPDestroyLogObjectsAtExit(TVP_ATEXIT_PRI_CLEANUP,
 
 //---------------------------------------------------------------------------
 void (*TVPOnLog)(const ttstr &line) = nullptr;
+void (*TVPPlatformOnLog)(const ttstr &line) = nullptr;
 // this function is invoked when a line is logged
 //---------------------------------------------------------------------------
 
@@ -85,6 +86,7 @@ void (*TVPOnLog)(const ttstr &line) = nullptr;
 // TVPSetOnLog
 //---------------------------------------------------------------------------
 void TVPSetOnLog(void (*func)(const ttstr &line)) { TVPOnLog = func; }
+void TVPSetPlatformOnLog(void (*func)(const ttstr &line)) { TVPPlatformOnLog = func; }
 
 //---------------------------------------------------------------------------
 static std::vector<tTJSVariantClosure> TVPLoggingHandlerVector;
@@ -390,6 +392,9 @@ void TVPAddLog(const ttstr &line, bool appendtoimportant) {
     TJS_strcpy(p, line.c_str());
     if(TVPOnLog)
         TVPOnLog(buf);
+    
+    if(TVPPlatformOnLog)
+        TVPPlatformOnLog(buf);
 
     // Application->PrintConsole(buf, appendtoimportant);
 
