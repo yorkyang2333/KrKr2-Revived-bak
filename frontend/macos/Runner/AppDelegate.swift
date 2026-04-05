@@ -8,12 +8,15 @@ var globalTextureRegistry: FlutterTextureRegistry?
 var globalKrKr2Texture: KrKr2Texture?
 var globalWidth: Int32 = 0
 var globalHeight: Int32 = 0
+let globalTextureLock = NSLock()
 
 // MARK: - Flutter Texture Implementation
 class KrKr2Texture: NSObject, FlutterTexture {
     var pixelBuffer: CVPixelBuffer?
     
     func copyPixelBuffer() -> Unmanaged<CVPixelBuffer>? {
+        globalTextureLock.lock()
+        defer { globalTextureLock.unlock() }
         if let pb = pixelBuffer {
             return Unmanaged.passRetained(pb)
         }
@@ -24,6 +27,8 @@ class KrKr2Texture: NSObject, FlutterTexture {
 // MARK: - C-Compatible API Exports for KrKr2 C++ Engine (Called via Dart FFI Function Pointers)
 @_cdecl("swift_krkr2_create_texture")
 public func swiftKrKr2CreateTexture(width: Int32, height: Int32, format: Int32) -> UnsafeMutableRawPointer? {
+    globalTextureLock.lock()
+    defer { globalTextureLock.unlock() }
     globalWidth = width
     globalHeight = height
     var pb: CVPixelBuffer?
@@ -39,6 +44,8 @@ public func swiftKrKr2CreateTexture(width: Int32, height: Int32, format: Int32) 
 
 @_cdecl("swift_krkr2_update_texture")
 public func swiftKrKr2UpdateTexture(tex: UnsafeMutableRawPointer?, pixels: UnsafeRawPointer?, pitch: Int32) {
+    globalTextureLock.lock()
+    defer { globalTextureLock.unlock() }
     guard let pb = globalKrKr2Texture?.pixelBuffer, let pixels = pixels else { return }
     CVPixelBufferLockBaseAddress(pb, [])
     let dest = CVPixelBufferGetBaseAddress(pb)!
@@ -55,11 +62,15 @@ public func swiftKrKr2UpdateTexture(tex: UnsafeMutableRawPointer?, pixels: Unsaf
 
 @_cdecl("swift_krkr2_destroy_texture")
 public func swiftKrKr2DestroyTexture(tex: UnsafeMutableRawPointer?) {
+    globalTextureLock.lock()
+    defer { globalTextureLock.unlock() }
     globalKrKr2Texture?.pixelBuffer = nil
 }
 
 @_cdecl("swift_krkr2_clear")
 public func swiftKrKr2Clear() {
+    globalTextureLock.lock()
+    defer { globalTextureLock.unlock() }
     guard let pb = globalKrKr2Texture?.pixelBuffer else { return }
     CVPixelBufferLockBaseAddress(pb, [])
     let dest = CVPixelBufferGetBaseAddress(pb)!

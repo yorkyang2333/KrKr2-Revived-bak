@@ -9,7 +9,7 @@ add_subdirectory(tjs2)
 add_subdirectory(base)
 add_subdirectory(environ)
 # add_subdirectory(extension)
-# add_subdirectory(plugin)
+add_subdirectory(plugin)
 # add_subdirectory(movie)
 # add_subdirectory(sound)
 add_subdirectory(visual)
@@ -20,7 +20,7 @@ target_link_libraries(${PROJECT_NAME} INTERFACE
         core_base_module
         core_environ_module
 #         core_extension_module
-#         core_plugin_module
+        core_plugin_module
 #         core_movie_module
 #         core_sound_module
         core_visual_module

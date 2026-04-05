@@ -11,6 +11,7 @@
 #include <set>
 #include <algorithm>
 #include <functional>
+#include <mutex>
 
 #include <spdlog/spdlog.h>
 
@@ -44,8 +45,23 @@
 
 //---------------------------------------------------------------------------
 bool TVPLoadInternalPlugin(const ttstr &_name);
+static std::mutex g_pluginFailureMutex;
+static std::vector<std::string> g_pluginFailureLog;
 
-void TVPLoadPlugin(const ttstr &name) {
+static void TVPRecordPluginFailure(const ttstr &pluginName, bool unsupported) {
+    std::string entry = TVPExtractStorageName(pluginName).AsStdString();
+    if(unsupported) {
+        entry += " (unsupported on this platform)";
+    }
+
+    std::lock_guard<std::mutex> lock(g_pluginFailureMutex);
+    if(std::find(g_pluginFailureLog.begin(), g_pluginFailureLog.end(), entry) ==
+       g_pluginFailureLog.end()) {
+        g_pluginFailureLog.push_back(entry);
+    }
+}
+
+bool TVPLoadPlugin(const ttstr &name, tTVPPluginLoadMode mode) {
     auto pluginName = name;
     // motionplayer.dll and emoteplayer.dll may be same?
     if(name == TJS_W("emoteplayer.dll"))
@@ -53,13 +69,21 @@ void TVPLoadPlugin(const ttstr &name) {
 
     if(TVPLoadInternalPlugin(pluginName)) {
         spdlog::debug("Loading Plugin: {} Success", name.AsStdString());
+        return true;
     } else {
-        if (TVPIsKnownWindowsOnlyPlugin(pluginName)) {
+        const bool unsupported = TVPIsKnownWindowsOnlyPlugin(pluginName);
+        if(mode == tTVPPluginLoadMode::ExplicitLink) {
+            TVPRecordPluginFailure(pluginName, unsupported);
+        }
+
+        if(unsupported) {
             spdlog::warn("Skipped known unsupported Windows plugin: {}", name.AsStdString());
         } else {
             spdlog::warn("Loading Plugin: {} Failed, but ignored to prevent crashes", name.AsStdString());
         }
     }
+
+    return false;
 }
 
 //---------------------------------------------------------------------------
@@ -97,7 +121,7 @@ static void TVPSearchPluginsAt(std::vector<tTVPFoundPlugin> &list,
 
 void TVPLoadInternalPlugins() {
     ncbAutoRegister::AllRegist();
-    ncbAutoRegister::LoadModule(TJS_W("xp3filter.dll"));
+    (void)ncbAutoRegister::LoadModule(TJS_W("xp3filter.dll"));
 }
 
 bool TVPLoadInternalPlugin(const ttstr &_name) {
@@ -180,8 +204,19 @@ void tvpLoadPlugins() {
     for(auto &i : list) {
         TVPAddImportantLog(ttstr(TJS_W("(info) Loading ")) +
                            ttstr(i.Name.c_str()));
-        TVPLoadPlugin((i.Path + "/" + i.Name).c_str());
+        (void)TVPLoadPlugin((i.Path + "/" + i.Name).c_str(),
+                            tTVPPluginLoadMode::AutoDiscover);
     }
+}
+
+void TVPClearPluginFailureLog() {
+    std::lock_guard<std::mutex> lock(g_pluginFailureMutex);
+    g_pluginFailureLog.clear();
+}
+
+std::vector<std::string> TVPGetPluginFailureLogSnapshot() {
+    std::lock_guard<std::mutex> lock(g_pluginFailureMutex);
+    return g_pluginFailureLog;
 }
 
 //---------------------------------------------------------------------------
@@ -210,7 +245,9 @@ int ZLIB_compress2(unsigned char *dest, unsigned long *destlen,
     return compress2(dest, destlen, source, sourcelen, level);
 }
 //---------------------------------------------------------------------------
-#include "md5.h"
+extern "C" {
+#include "krkr2_crypto.h"
+}
 
 static char TVP_assert_md5_state_t_size[(sizeof(TVP_md5_state_t) >=
                                          sizeof(md5_state_t))];
@@ -223,7 +260,7 @@ void TVP_md5_init(TVP_md5_state_t *pms) { md5_init((md5_state_t *)pms); }
 
 //---------------------------------------------------------------------------
 void TVP_md5_append(TVP_md5_state_t *pms, const tjs_uint8 *data, int nbytes) {
-    md5_append((md5_state_t *)pms, (const md5_byte_t *)data, nbytes);
+    md5_append((md5_state_t *)pms, data, nbytes);
 }
 
 //---------------------------------------------------------------------------
@@ -312,7 +349,11 @@ tTJSNativeClass *TVPCreateNativeClass_Plugins() {
 
         ttstr name = *param[0];
 
-        TVPLoadPlugin(name);
+        const bool loaded =
+            TVPLoadPlugin(name, tTVPPluginLoadMode::ExplicitLink);
+
+        if(result)
+            *result = static_cast<tjs_int>(loaded);
 
         return TJS_S_OK;
     }

@@ -192,6 +192,37 @@ class KrKr2Bindings {
   /// ---------------------------------------------------------------------------
   /// Display queries
   /// ---------------------------------------------------------------------------
+  int krkr2_get_startup_state() {
+    return _krkr2_get_startup_state();
+  }
+
+  late final _krkr2_get_startup_statePtr =
+      _lookup<ffi.NativeFunction<ffi.Int Function()>>(
+        'krkr2_get_startup_state',
+      );
+  late final _krkr2_get_startup_state = _krkr2_get_startup_statePtr
+      .asFunction<int Function()>();
+
+  bool krkr2_has_first_frame() {
+    return _krkr2_has_first_frame();
+  }
+
+  late final _krkr2_has_first_framePtr =
+      _lookup<ffi.NativeFunction<ffi.Bool Function()>>('krkr2_has_first_frame');
+  late final _krkr2_has_first_frame = _krkr2_has_first_framePtr
+      .asFunction<bool Function()>();
+
+  ffi.Pointer<ffi.Char> krkr2_get_last_error_message() {
+    return _krkr2_get_last_error_message();
+  }
+
+  late final _krkr2_get_last_error_messagePtr =
+      _lookup<ffi.NativeFunction<ffi.Pointer<ffi.Char> Function()>>(
+        'krkr2_get_last_error_message',
+      );
+  late final _krkr2_get_last_error_message = _krkr2_get_last_error_messagePtr
+      .asFunction<ffi.Pointer<ffi.Char> Function()>();
+
   void krkr2_get_window_size(
     ffi.Pointer<ffi.Int> width,
     ffi.Pointer<ffi.Int> height,

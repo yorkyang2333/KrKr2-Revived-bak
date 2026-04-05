@@ -11,6 +11,13 @@ extern "C" {
 // ---------------------------------------------------------------------------
 // Engine initialization and shutdown
 // ---------------------------------------------------------------------------
+typedef enum krkr2_startup_state {
+    KRKR2_STARTUP_IDLE = 0,
+    KRKR2_STARTUP_STARTING = 1,
+    KRKR2_STARTUP_RUNNING = 2,
+    KRKR2_STARTUP_FAILED = 3,
+} krkr2_startup_state_t;
+
 bool krkr2_init(int argc, char** argv);
 void krkr2_shutdown();
 
@@ -55,6 +62,9 @@ void krkr2_set_log_callback(krkr2_log_callback_t callback);
 // ---------------------------------------------------------------------------
 // Display queries
 // ---------------------------------------------------------------------------
+int krkr2_get_startup_state();
+bool krkr2_has_first_frame();
+const char* krkr2_get_last_error_message();
 void krkr2_get_window_size(int* width, int* height);
 
 #ifdef __cplusplus

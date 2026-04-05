@@ -88,7 +88,7 @@ add_subdirectory(backend/rust)
 
 # build library
 add_subdirectory(${KRKR2CORE_PATH})
-# add_subdirectory(${KRKR2PLUGIN_PATH})
+add_subdirectory(${KRKR2PLUGIN_PATH})
 add_subdirectory(backend/platform)
 
 # target_link_libraries(${PROJECT_NAME} PUBLIC

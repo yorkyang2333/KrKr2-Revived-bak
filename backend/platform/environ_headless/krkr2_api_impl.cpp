@@ -6,12 +6,22 @@
 #include <mutex>
 #include <algorithm>
 #include <cctype>
+#include <string_view>
+#include <condition_variable>
+#include <chrono>
+#include <deque>
+#include <functional>
 #include <SDL3/SDL.h>
 
 #include "tjsCommHead.h"
 #include "tjsString.h"
 #include "Application.h"
 #include "DebugIntf.h"
+#include "PluginImpl.h"
+#include "EventIntf.h"
+#include "WindowIntf.h"
+#include "tvpinputdefs.h"
+#include "vkdefine.h"
 #include "../../../core/visual/IWindow.h"
 #include "../../../core/visual/IRenderer.h"
 #include "../../../core/visual/GraphicsLoaderIntf.h"
@@ -89,23 +99,26 @@ static std::unordered_map<std::string, std::string> g_globalOptions;
 static std::unordered_map<std::string, std::string> g_currentGameOptions;
 static std::mutex g_optionMutex;
 
-// --- Engine thread state ---
-// The engine startup (StartApplication) is a long-running, potentially
-// blocking operation. We run it in a dedicated background thread so that
-// Flutter's UI thread (which calls krkr2_init) is never blocked.
-//
-// After startup completes, krkr2_tick() drives the engine's per-frame
-// event loop from Flutter's Ticker (also on the UI thread). A mutex
-// serializes startup vs tick so the engine's internals (TJS event queue,
-// timers) are never accessed from two threads simultaneously.
 #include <thread>
 #include <atomic>
 #include <queue>
 
 static std::thread            g_engineThread;
-static std::mutex             g_engineMutex;
-static std::atomic<bool>      g_startupDone{false};
-static std::atomic<bool>      g_startupSuccess{false};
+static std::mutex             g_engineCommandMutex;
+static std::condition_variable g_engineCommandCv;
+static std::deque<std::function<void()>> g_engineCommandQueue;
+static std::atomic<bool>      g_engineStopRequested{false};
+static std::atomic<int>       g_startupState{KRKR2_STARTUP_IDLE};
+static std::atomic<bool>      g_firstFrameReady{false};
+static std::atomic<int>       g_windowWidth{0};
+static std::atomic<int>       g_windowHeight{0};
+static std::atomic<int>       g_windowCount{0};
+static std::mutex             g_errorMutex;
+static std::string            g_lastErrorMessage;
+static std::mutex             g_startupStepMutex;
+static std::string            g_lastStartupStep = "Idle";
+static tjs_uint32             g_inputShiftState = 0;
+static tjs_uint32             g_inputMouseButtonState = 0;
 
 // ---------------------------------------------------------------------------
 // Thread-safe log queue
@@ -117,6 +130,85 @@ static std::atomic<bool>      g_startupSuccess{false};
 // the queue inside krkr2_tick(), which is always called on the Dart thread.
 static std::mutex             g_logMutex;
 static std::queue<std::string> g_logQueue;
+
+static void krkr2_set_startup_state(krkr2_startup_state_t state) {
+    g_startupState.store(static_cast<int>(state), std::memory_order_release);
+}
+
+static void krkr2_set_startup_step(std::string step) {
+    std::lock_guard<std::mutex> lock(g_startupStepMutex);
+    g_lastStartupStep = std::move(step);
+}
+
+static std::string krkr2_get_startup_step_copy() {
+    std::lock_guard<std::mutex> lock(g_startupStepMutex);
+    return g_lastStartupStep;
+}
+
+static void krkr2_set_last_error_message(const std::string &message) {
+    std::lock_guard<std::mutex> lock(g_errorMutex);
+    g_lastErrorMessage = message;
+}
+
+static void krkr2_clear_last_error_message() {
+    std::lock_guard<std::mutex> lock(g_errorMutex);
+    g_lastErrorMessage.clear();
+}
+
+static std::string krkr2_get_last_error_copy() {
+    std::lock_guard<std::mutex> lock(g_errorMutex);
+    return g_lastErrorMessage;
+}
+
+static std::string krkr2_build_diagnostic_message(std::string_view message) {
+    std::string combined(message.empty() ?
+                             "Engine reported an unspecified fatal error." :
+                             std::string(message));
+    const std::string step = krkr2_get_startup_step_copy();
+    if(!step.empty() && step != "Idle" && step != "Startup complete" &&
+       step != "Engine running") {
+        combined += "\nLast startup step: " + step;
+    }
+
+    const std::vector<std::string> pluginFailures =
+        TVPGetPluginFailureLogSnapshot();
+    if(!pluginFailures.empty()) {
+        combined += "\nPlugin failures: ";
+        for(size_t index = 0; index < pluginFailures.size(); ++index) {
+            if(index != 0) {
+                combined += ", ";
+            }
+            combined += pluginFailures[index];
+        }
+    }
+
+    return combined;
+}
+
+static void krkr2_record_engine_error(std::string_view message) {
+    krkr2_set_last_error_message(krkr2_build_diagnostic_message(message));
+    krkr2_set_startup_state(KRKR2_STARTUP_FAILED);
+}
+
+static void krkr2_reset_startup_tracking() {
+    krkr2_clear_last_error_message();
+    TVPClearPluginFailureLog();
+    g_firstFrameReady.store(false, std::memory_order_release);
+    g_windowWidth.store(0, std::memory_order_release);
+    g_windowHeight.store(0, std::memory_order_release);
+    g_windowCount.store(0, std::memory_order_release);
+    krkr2_set_startup_step("Queued startup");
+    krkr2_set_startup_state(KRKR2_STARTUP_STARTING);
+}
+
+static void krkr2_update_window_size(int width, int height) {
+    if(width > 0) {
+        g_windowWidth.store(width, std::memory_order_release);
+    }
+    if(height > 0) {
+        g_windowHeight.store(height, std::memory_order_release);
+    }
+}
 
 static bool krkr2_try_get_option(const std::string &key, std::string &value) {
     std::lock_guard<std::mutex> lock(g_optionMutex);
@@ -182,7 +274,200 @@ static void krkr2_flush_logs() {
     }
 }
 
+extern "C" void krkr2_report_startup_step(const char* message);
+extern "C" void krkr2_report_engine_error(const char* message);
+
+static void krkr2_queue_engine_task(std::function<void()> task) {
+    {
+        std::lock_guard<std::mutex> lock(g_engineCommandMutex);
+        g_engineCommandQueue.push_back(std::move(task));
+    }
+    g_engineCommandCv.notify_one();
+}
+
+static tTJSNI_Window* krkr2_get_primary_window_instance() {
+    if(TVPGetWindowCount() <= 0) {
+        return nullptr;
+    }
+    return TVPGetWindowListAt(TVPGetWindowCount() - 1);
+}
+
+static tTVPMouseButton krkr2_map_mouse_button(int button) {
+    switch(button) {
+        case 1:
+            return mbRight;
+        case 2:
+            return mbMiddle;
+        case 3:
+            return mbX1;
+        case 4:
+            return mbX2;
+        case 0:
+        default:
+            return mbLeft;
+    }
+}
+
+static tjs_uint32 krkr2_mouse_button_flag(int button) {
+    switch(button) {
+        case 1:
+            return TVP_SS_RIGHT;
+        case 2:
+            return TVP_SS_MIDDLE;
+        default:
+            return TVP_SS_LEFT;
+    }
+}
+
+static void krkr2_update_modifier_state(int keycode, bool pressed) {
+    tjs_uint32 flag = 0;
+    switch(keycode) {
+        case VK_SHIFT:
+        case VK_LSHIFT:
+        case VK_RSHIFT:
+            flag = TVP_SS_SHIFT;
+            break;
+        case VK_CONTROL:
+        case VK_LCONTROL:
+        case VK_RCONTROL:
+            flag = TVP_SS_CTRL;
+            break;
+        case VK_MENU:
+        case VK_LMENU:
+        case VK_RMENU:
+            flag = TVP_SS_ALT;
+            break;
+        default:
+            break;
+    }
+
+    if(flag == 0) {
+        return;
+    }
+
+    if(pressed) {
+        g_inputShiftState |= flag;
+    } else {
+        g_inputShiftState &= ~flag;
+    }
+}
+
+static void krkr2_dispatch_mouse_event(int type, int button, int x, int y) {
+    tTJSNI_Window* window = krkr2_get_primary_window_instance();
+    if(!window) {
+        return;
+    }
+
+    switch(type) {
+        case 1:
+            g_inputMouseButtonState |= krkr2_mouse_button_flag(button);
+            TVPPostInputEvent(new tTVPOnMouseDownInputEvent(
+                window, x, y, krkr2_map_mouse_button(button),
+                g_inputShiftState | g_inputMouseButtonState));
+            break;
+        case 2: {
+            const tjs_uint32 flags = g_inputShiftState | g_inputMouseButtonState;
+            TVPPostInputEvent(new tTVPOnMouseUpInputEvent(
+                window, x, y, krkr2_map_mouse_button(button), flags));
+            g_inputMouseButtonState &= ~krkr2_mouse_button_flag(button);
+            break;
+        }
+        case 3:
+            TVPPostInputEvent(new tTVPOnMouseOutOfWindowInputEvent(window));
+            TVPPostInputEvent(new tTVPOnMouseLeaveInputEvent(window));
+            break;
+        case 0:
+        default:
+            TVPPostInputEvent(new tTVPOnMouseMoveInputEvent(
+                window, x, y, g_inputShiftState | g_inputMouseButtonState),
+                TVP_EPT_DISCARDABLE | TVP_EPT_REMOVE_POST);
+            break;
+    }
+}
+
+static void krkr2_dispatch_key_event(int type, int keycode) {
+    tTJSNI_Window* window = krkr2_get_primary_window_instance();
+    if(!window) {
+        return;
+    }
+
+    switch(type) {
+        case 1:
+            krkr2_update_modifier_state(keycode, false);
+            TVPPostInputEvent(new tTVPOnKeyUpInputEvent(
+                window, keycode, g_inputShiftState | g_inputMouseButtonState));
+            break;
+        case 2:
+            TVPPostInputEvent(new tTVPOnKeyPressInputEvent(
+                window, static_cast<tjs_char>(keycode)));
+            break;
+        case 0:
+        default:
+            krkr2_update_modifier_state(keycode, true);
+            TVPPostInputEvent(new tTVPOnKeyDownInputEvent(
+                window, keycode, g_inputShiftState | g_inputMouseButtonState));
+            break;
+    }
+}
+
+static void krkr2_engine_thread_main() {
+    TVPSetStartupStepCallback(krkr2_report_startup_step);
+    TVPSetEngineErrorCallback(krkr2_report_engine_error);
+
+    while(true) {
+        std::deque<std::function<void()>> tasks;
+        {
+            std::unique_lock<std::mutex> lock(g_engineCommandMutex);
+            const auto waitDuration =
+                g_startupState.load(std::memory_order_acquire) ==
+                        KRKR2_STARTUP_RUNNING
+                    ? std::chrono::milliseconds(8)
+                    : std::chrono::milliseconds(50);
+            if(g_engineCommandQueue.empty() &&
+               !g_engineStopRequested.load(std::memory_order_acquire)) {
+                g_engineCommandCv.wait_for(
+                    lock, waitDuration, []() {
+                        return !g_engineCommandQueue.empty() ||
+                            g_engineStopRequested.load(
+                                std::memory_order_acquire);
+                    });
+            }
+            tasks.swap(g_engineCommandQueue);
+        }
+
+        for(auto &task : tasks) {
+            task();
+        }
+
+        if(g_engineStopRequested.load(std::memory_order_acquire)) {
+            break;
+        }
+
+        if(Application &&
+           g_startupState.load(std::memory_order_acquire) ==
+               KRKR2_STARTUP_RUNNING) {
+            Application->Run();
+            g_windowCount.store(TVPGetWindowCount(), std::memory_order_release);
+        }
+    }
+
+    TVPSetStartupStepCallback(nullptr);
+    TVPSetEngineErrorCallback(nullptr);
+}
+
 extern "C" {
+
+void krkr2_report_startup_step(const char* message) {
+    krkr2_set_startup_step((message && *message) ? message : "Startup progress");
+}
+
+void krkr2_report_engine_error(const char* message) {
+    if(message && *message) {
+        krkr2_record_engine_error(message);
+        return;
+    }
+    krkr2_record_engine_error("Engine reported an unspecified fatal error.");
+}
 
 void krkr2_set_log_callback(krkr2_log_callback_t callback) {
     g_logCallback = callback;
@@ -229,81 +514,152 @@ void krkr2_destroy() {
 }
 
 bool krkr2_init(int argc, char** argv) {
-    if (!Application) {
-        Application = new tTVPApplication();
-    }
-
-    // Copy the path before starting the thread (argv may be stack-allocated)
     std::string pathStr = g_gamePath;
     if (pathStr.empty() && argc > 1 && argv[1]) {
         pathStr = argv[1];
     }
+    if(pathStr.empty()) {
+        krkr2_record_engine_error("No game path was configured for startup.");
+        return false;
+    }
+    if(g_engineThread.joinable()) {
+        krkr2_record_engine_error(
+            "Engine thread is already active. Shutdown before starting again.");
+        return false;
+    }
 
-    g_startupDone    = false;
-    g_startupSuccess = false;
+    krkr2_reset_startup_tracking();
+    g_inputShiftState = 0;
+    g_inputMouseButtonState = 0;
+    g_engineStopRequested.store(false, std::memory_order_release);
 
-    // Spawn the engine startup in a background thread.
-    // krkr2_tick() will be a no-op until g_startupDone becomes true.
-    g_engineThread = std::thread([pathStr]() {
-        ttstr path(pathStr.c_str());
-        fprintf(stderr, "[KRKR2] Engine startup thread starting, path=%s\n",
-                pathStr.c_str());
+    try {
+        g_engineThread = std::thread(krkr2_engine_thread_main);
+    } catch(const std::exception& e) {
+        krkr2_record_engine_error(e.what());
+        return false;
+    } catch(...) {
+        krkr2_record_engine_error("Failed to create the engine thread.");
+        return false;
+    }
 
-        bool ok = false;
-        {
-            std::lock_guard<std::mutex> lock(g_engineMutex);
-            ok = Application->StartApplication(path);
+    krkr2_queue_engine_task([pathStr]() {
+        try {
+            if(!Application) {
+                Application = new tTVPApplication();
+            }
+
+            ttstr path(pathStr.c_str());
+            fprintf(stderr, "[KRKR2] Engine startup thread starting, path=%s\n",
+                    pathStr.c_str());
+
+            const bool ok = Application->StartApplication(path);
+            if(ok) {
+                krkr2_clear_last_error_message();
+                krkr2_set_startup_step("Engine running");
+                g_windowCount.store(TVPGetWindowCount(),
+                                    std::memory_order_release);
+                krkr2_set_startup_state(KRKR2_STARTUP_RUNNING);
+                TVPAddImportantLog(
+                    ttstr(TJS_W("[KRKR2] Startup state -> running")));
+            } else {
+                if(krkr2_get_last_error_copy().empty()) {
+                    krkr2_set_last_error_message(krkr2_build_diagnostic_message(
+                        "Engine startup returned false before the first frame "
+                        "was rendered."));
+                }
+                krkr2_set_startup_step("Startup failed");
+                krkr2_set_startup_state(KRKR2_STARTUP_FAILED);
+                TVPAddImportantLog(
+                    ttstr(TJS_W("[KRKR2] Startup state -> failed")));
+            }
+
+            fprintf(stderr,
+                    "[KRKR2] Engine startup thread finished, result=%d\n",
+                    (int)ok);
+        } catch(const std::exception& e) {
+            krkr2_set_startup_step("Startup failed");
+            krkr2_record_engine_error(e.what());
+        } catch(...) {
+            krkr2_set_startup_step("Startup failed");
+            krkr2_record_engine_error(
+                "Engine startup threw an unknown exception.");
         }
-
-        g_startupSuccess = ok;
-        g_startupDone    = true;
-
-        fprintf(stderr, "[KRKR2] Engine startup thread finished, result=%d\n",
-                (int)ok);
     });
-    g_engineThread.detach();
 
-    // Return true immediately — Flutter is not blocked.
     return true;
 }
 
 void krkr2_shutdown() {
-    if (Application) {
+    if(g_engineThread.joinable()) {
+        {
+            std::lock_guard<std::mutex> lock(g_engineCommandMutex);
+            g_engineStopRequested.store(true, std::memory_order_release);
+            g_engineCommandQueue.push_back([]() {
+                if(Application) {
+                    Application->Terminate();
+                    delete Application;
+                    Application = nullptr;
+                }
+                TVPClearPluginFailureLog();
+                krkr2_clear_last_error_message();
+                g_firstFrameReady.store(false, std::memory_order_release);
+                g_windowWidth.store(0, std::memory_order_release);
+                g_windowHeight.store(0, std::memory_order_release);
+                g_windowCount.store(0, std::memory_order_release);
+                g_inputShiftState = 0;
+                g_inputMouseButtonState = 0;
+                krkr2_set_startup_step("Idle");
+                krkr2_set_startup_state(KRKR2_STARTUP_IDLE);
+            });
+        }
+        g_engineCommandCv.notify_one();
+        g_engineThread.join();
+    } else if(Application) {
         Application->Terminate();
         delete Application;
         Application = nullptr;
     }
+
+    {
+        std::lock_guard<std::mutex> lock(g_engineCommandMutex);
+        g_engineCommandQueue.clear();
+    }
+    g_engineStopRequested.store(false, std::memory_order_release);
     {
         std::lock_guard<std::mutex> lock(g_optionMutex);
         g_currentGameOptions.clear();
     }
-    g_startupDone = true; // unblock any waiting tick
+    TVPClearPluginFailureLog();
+    krkr2_clear_last_error_message();
+    g_firstFrameReady.store(false, std::memory_order_release);
+    g_windowWidth.store(0, std::memory_order_release);
+    g_windowHeight.store(0, std::memory_order_release);
+    g_windowCount.store(0, std::memory_order_release);
+    g_inputShiftState = 0;
+    g_inputMouseButtonState = 0;
+    krkr2_set_startup_step("Idle");
+    krkr2_set_startup_state(KRKR2_STARTUP_IDLE);
 }
 
 void krkr2_tick() {
-    // Always flush buffered log messages first, regardless of startup state.
-    // This is safe because krkr2_tick is always called from the Dart thread,
-    // and g_logCallback (NativeCallable.isolateLocal) requires the Dart thread.
     krkr2_flush_logs();
-
-    // Do not drive the engine until startup has finished.
-    if (!g_startupDone.load(std::memory_order_acquire)) return;
-    if (!Application) return;
-
-    // Serialize tick with the mutex so that if startup is still holding
-    // the lock for some reason we don't race on the engine internals.
-    std::unique_lock<std::mutex> lock(g_engineMutex, std::try_to_lock);
-    if (!lock.owns_lock()) return; // startup still running — skip this tick
-
-    Application->Run();
 }
 
 void krkr2_push_mouse_event(int type, int button, int x, int y) {
-    // TODO: Forward to engine
+    if(!g_engineThread.joinable()) {
+        return;
+    }
+    krkr2_queue_engine_task(
+        [type, button, x, y]() { krkr2_dispatch_mouse_event(type, button, x, y); });
 }
 
 void krkr2_push_key_event(int type, int keycode) {
-    // TODO: Forward to engine
+    if(!g_engineThread.joinable()) {
+        return;
+    }
+    krkr2_queue_engine_task(
+        [type, keycode]() { krkr2_dispatch_key_event(type, keycode); });
 }
 
 void krkr2_push_touch_event(int type, int id, float x, float y) {
@@ -311,16 +667,33 @@ void krkr2_push_touch_event(int type, int id, float x, float y) {
 }
 
 int krkr2_get_window_count() {
-    return 1;
+    return g_windowCount.load(std::memory_order_acquire);
 }
 
 void* krkr2_get_primary_native_window() {
     return nullptr;
 }
 
+int krkr2_get_startup_state() {
+    return g_startupState.load(std::memory_order_acquire);
+}
+
+bool krkr2_has_first_frame() {
+    return g_firstFrameReady.load(std::memory_order_acquire);
+}
+
+const char* krkr2_get_last_error_message() {
+    static thread_local std::string errorCopy;
+    {
+        std::lock_guard<std::mutex> lock(g_errorMutex);
+        errorCopy = g_lastErrorMessage;
+    }
+    return errorCopy.c_str();
+}
+
 void krkr2_get_window_size(int* width, int* height) {
-    if (width) *width = 800;
-    if (height) *height = 600;
+    if(width) *width = g_windowWidth.load(std::memory_order_acquire);
+    if(height) *height = g_windowHeight.load(std::memory_order_acquire);
 }
 
 } // extern "C"
@@ -428,7 +801,6 @@ const std::string& LocaleConfigManager::GetText(const std::string &key) {
 }
 std::string LocaleConfigManager::GetFilePath() { return ""; }
 
-void TVPSetSystemEventDisabledState(bool disabled) {}
 void TVPCauseAtInstallExtensionClass(TJS::iTJSDispatch2*) {}
 tTJSNativeClass* TVPCreateNativeClass_VideoOverlay() { return new tTJSNativeClass(TJS_W("VideoOverlay")); }
 tTJSNativeClass* TVPCreateNativeClass_CDDASoundBuffer() { return new tTJSNativeClass(TJS_W("CDDASoundBuffer")); }
@@ -453,17 +825,15 @@ LocaleConfigManager::LocaleConfigManager() {}
 ttstr TVPGetPlatformName() { return ttstr(TJS_W("MacOS_Headless")); }
 std::string TVPGetPackageVersionString() { return "1.0.0"; }
 void TVPOpenPatchLibUrl() {}
-iTVPRenderManager* TVPGetRenderManager() { return nullptr; }
 int TVPShowSimpleMessageBox(const TJS::tTJSString&, const TJS::tTJSString&, const std::vector<TJS::tTJSString>&) { return 0; }
+extern "C" int TVPShowSimpleMessageBox(const char*, const char*, unsigned int, const char**) { return 0; }
+tjs_int TVPGetSystemFreeMemory() { return 1024; }
+tjs_int TVPGetSelfUsedMemory() { return 0; }
+ttstr TVPReadAboutStringFromResource() {
+    return TJS_W("Kirikiri2 Runtime Core version %1(TJS version %2)");
+}
 void* TVPGetCachedArchiveHandle(void*, const TJS::tTJSString&) { return nullptr; }
 void TVPReleaseCachedArchiveHandle(void*, TJS::tTJSBinaryStream*) {}
-tTJSNativeClass* TVPCreateNativeClass_Layer() { return new tTJSNativeClass(TJS_W("Layer")); }
-tTJSNativeClass* TVPCreateNativeClass_System() { return new tTJSNativeClass(TJS_W("System")); }
-tTJSNativeClass* TVPCreateNativeClass_Plugins() { return new tTJSNativeClass(TJS_W("Plugins")); }
-tTJSNativeClass* TVPCreateNativeClass_MenuItem() { return new tTJSNativeClass(TJS_W("MenuItem")); }
-bool TVPIsSoftwareRenderManager() { return false; }
-iTVPRenderManager* TVPGetSoftwareRenderManager() { return nullptr; }
-bool TVPGetSystemEventDisabledState() { return false; }
 
 extern "C" void TVPUtf8ToWideCharString_C(const char*, char16_t*) asm("_TVPUtf8ToWideCharString");
 void TVPUtf8ToWideCharString(const char* in, char16_t* out) {
@@ -493,18 +863,15 @@ void TVPGetVersion(void) {
 ttstr TVPGetOSName() { return ttstr(TJS_W("macOS")); }
 void TVPLoadPVRv3(TJS::tTJSBinaryStream*, const std::function<void(const TJS::tTJSString&, const TJS::tTJSVariant&)>&) {}
 bool TVPSelectFile(TJS::iTJSDispatch2*) { return false; }
-void tvpLoadPlugins() {}
-void TVPInvokeEvents() {}
-void TVPEventReceived() {}
-void TVPCallDeliverAllEventsOnIdle() {}
-void TVPBreathe() {}
-bool TVPGetBreathing() { return false; }
-void TVPBeginContinuousEvent() {}
-void TVPEndContinuousEvent() {}
 void TVPGetMemoryInfo(TVPMemoryInfo&) {}
+class tTVPWaveDecoderCreator;
+void TVPRegisterWaveDecoderCreator(tTVPWaveDecoderCreator*) {}
+void TVPUnregisterWaveDecoderCreator(tTVPWaveDecoderCreator*) {}
 unsigned int TVPToActualColor(unsigned int c) { return c; }
 unsigned int TVPFromActualColor(unsigned int c) { return c; }
 void TVPExitApplication(int) {}
+bool TVPGetKeyMouseAsyncState(tjs_uint, bool) { return false; }
+bool TVPGetJoyPadAsyncState(tjs_uint, bool) { return false; }
 
 #include <filesystem>
 #include <fstream>
@@ -578,6 +945,16 @@ public:
         GetSrcSize(w, h);
         if (w <= 0 || h <= 0) return;
 
+        const int previousWidth = g_windowWidth.load(std::memory_order_acquire);
+        const int previousHeight =
+            g_windowHeight.load(std::memory_order_acquire);
+        krkr2_update_window_size(w, h);
+        if(previousWidth != w || previousHeight != h) {
+            TVPAddImportantLog(
+                ttstr(TJS_W("[KRKR2] Render size updated to ")) + ttstr(w) +
+                TJS_W("x") + ttstr(h));
+        }
+
         if (!tex_ || tex_w_ != w || tex_h_ != h) {
             if (tex_ && g_krkr2_renderer_interface.destroy_texture) {
                 g_krkr2_renderer_interface.destroy_texture(tex_);
@@ -601,6 +978,11 @@ public:
         int pitch = bmp->GetPitchBytes();
         
         g_krkr2_renderer_interface.update_texture(tex_, pixels, pitch);
+        krkr2_update_window_size(tex_w_, tex_h_);
+        if(!g_firstFrameReady.exchange(true, std::memory_order_acq_rel)) {
+            TVPAddImportantLog(
+                ttstr(TJS_W("[KRKR2] First frame uploaded to host texture")));
+        }
     }
 
     void EndBitmapCompletion(iTVPLayerManager *manager) override {

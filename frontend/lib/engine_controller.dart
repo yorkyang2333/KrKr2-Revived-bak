@@ -11,6 +11,43 @@ import 'models/launcher_settings.dart';
 import 'src/ffi/krkr2_bindings.dart';
 import 'ui/game_profile.dart';
 
+enum EngineStartupState { idle, starting, running, failed }
+
+@immutable
+class EngineStartupSnapshot {
+  const EngineStartupSnapshot({
+    this.state = EngineStartupState.idle,
+    this.hasFirstFrame = false,
+    this.width = 0,
+    this.height = 0,
+    this.errorMessage,
+  });
+
+  final EngineStartupState state;
+  final bool hasFirstFrame;
+  final int width;
+  final int height;
+  final String? errorMessage;
+
+  bool get hasRenderableSize => width > 0 && height > 0;
+  bool get isReady => state == EngineStartupState.running && hasFirstFrame;
+  double get aspectRatio => hasRenderableSize ? width / height : 4 / 3;
+
+  @override
+  bool operator ==(Object other) {
+    return other is EngineStartupSnapshot &&
+        other.state == state &&
+        other.hasFirstFrame == hasFirstFrame &&
+        other.width == width &&
+        other.height == height &&
+        other.errorMessage == errorMessage;
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(state, hasFirstFrame, width, height, errorMessage);
+}
+
 class EngineController {
   static const List<String> _knownOptionKeys = <String>[
     'default_font',
@@ -34,11 +71,16 @@ class EngineController {
   final List<String> logs = <String>[];
   final StreamController<String> _logStreamController =
       StreamController<String>.broadcast();
+  final ValueNotifier<EngineStartupSnapshot> _startupSnapshot =
+      ValueNotifier<EngineStartupSnapshot>(const EngineStartupSnapshot());
 
   ffi.NativeCallable<krkr2_log_callback_tFunction>? _logCallback;
   ffi.Pointer<krkr2_renderer_interface_t>? _rendererInterface;
 
   Stream<String> get logStream => _logStreamController.stream;
+  ValueListenable<EngineStartupSnapshot> get startupSnapshotListenable =>
+      _startupSnapshot;
+  EngineStartupSnapshot get startupSnapshot => _startupSnapshot.value;
   bool get isLogForwardingEnabled => _forwardEngineLogs;
 
   int? textureId;
@@ -49,11 +91,12 @@ class EngineController {
   int _logRetention = 250;
   Duration? _frameInterval;
   Duration? _lastTickAt;
+  String? _activeLaunchLabel;
 
   Future<void> initialize({required LauncherSettings settings}) async {
     _applyRuntimeSettings(settings);
-    logs.clear();
     _lastTickAt = null;
+    _updateStartupSnapshot(const EngineStartupSnapshot());
 
     if (Platform.isMacOS) {
       _dylib = ffi.DynamicLibrary.process();
@@ -142,6 +185,11 @@ class EngineController {
     required LauncherSettings settings,
   }) {
     _applyRuntimeSettings(settings, profile: profile);
+    _updateStartupSnapshot(
+      const EngineStartupSnapshot(state: EngineStartupState.starting),
+    );
+    _activeLaunchLabel = profile.name;
+    _appendLogEntry('=== Launch Start: ${profile.name} ===');
     _pushEngineOptions(profile, settings);
 
     final pathPtr = profile.path.toNativeUtf8();
@@ -153,7 +201,16 @@ class EngineController {
       for (int index = 0; index < argvItems.length; index += 1) {
         argv[index] = argvItems[index].toNativeUtf8().cast<ffi.Char>();
       }
-      return _bindings.krkr2_init(argvItems.length, argv);
+      final bool launched = _bindings.krkr2_init(argvItems.length, argv);
+      if (!launched) {
+        _updateStartupSnapshot(
+          const EngineStartupSnapshot(
+            state: EngineStartupState.failed,
+            errorMessage: 'Engine startup request was rejected.',
+          ),
+        );
+      }
+      return launched;
     } finally {
       for (int index = 0; index < argvItems.length; index += 1) {
         calloc.free(argv[index]);
@@ -175,11 +232,35 @@ class EngineController {
 
   void tick() {
     _bindings.krkr2_tick();
+    _pollStartupSnapshot();
+  }
+
+  void pushMouseEvent({
+    required int type,
+    required int button,
+    required int x,
+    required int y,
+  }) {
+    if (!_isInitialized) {
+      return;
+    }
+    _bindings.krkr2_push_mouse_event(type, button, x, y);
+  }
+
+  void pushKeyEvent({required int type, required int keycode}) {
+    if (!_isInitialized) {
+      return;
+    }
+    _bindings.krkr2_push_key_event(type, keycode);
   }
 
   void shutdown() {
     if (!_isInitialized) {
       return;
+    }
+    if (_activeLaunchLabel != null) {
+      _appendLogEntry('=== Launch End: $_activeLaunchLabel ===');
+      _activeLaunchLabel = null;
     }
     _isRunning = false;
     _ticker?.stop();
@@ -187,6 +268,7 @@ class EngineController {
     _ticker = null;
     _lastTickAt = null;
     _bindings.krkr2_shutdown();
+    _updateStartupSnapshot(const EngineStartupSnapshot());
     _isInitialized = false;
   }
 
@@ -257,8 +339,14 @@ class EngineController {
       return;
     }
 
-    if (_frameInterval == null) {
+    final bool shouldThrottle =
+        _startupSnapshot.value.state == EngineStartupState.running &&
+        _frameInterval != null;
+
+    if (!shouldThrottle) {
+      _lastTickAt = null;
       _bindings.krkr2_tick();
+      _pollStartupSnapshot();
       return;
     }
 
@@ -266,6 +354,7 @@ class EngineController {
       _lastTickAt = elapsed;
       _bindings.krkr2_tick();
     }
+    _pollStartupSnapshot();
   }
 
   void _onLogReceived(int level, ffi.Pointer<ffi.Char> message) {
@@ -276,14 +365,89 @@ class EngineController {
     try {
       final text = message.cast<Utf8>().toDartString();
       final logEntry = '[$level] $text';
-      logs.add(logEntry);
-      if (logs.length > _logRetention) {
-        logs.removeRange(0, logs.length - _logRetention);
-      }
-      _logStreamController.add(logEntry);
+      _appendLogEntry(logEntry);
       debugPrint('Engine Log: $text');
     } catch (_) {
       debugPrint('Engine Log: [Malformed UTF-8 string]');
+    }
+  }
+
+  void _appendLogEntry(String entry) {
+    logs.add(entry);
+    if (logs.length > _logRetention) {
+      logs.removeRange(0, logs.length - _logRetention);
+    }
+    _logStreamController.add(entry);
+  }
+
+  void _pollStartupSnapshot() {
+    if (!_isInitialized) {
+      return;
+    }
+
+    final EngineStartupState state = _mapStartupState(
+      _bindings.krkr2_get_startup_state(),
+    );
+    final bool hasFirstFrame = _bindings.krkr2_has_first_frame();
+    final ({int width, int height}) size = _readWindowSize();
+    final String? errorMessage = _readErrorMessage();
+
+    _updateStartupSnapshot(
+      EngineStartupSnapshot(
+        state: state,
+        hasFirstFrame: hasFirstFrame,
+        width: size.width,
+        height: size.height,
+        errorMessage: errorMessage,
+      ),
+    );
+  }
+
+  ({int width, int height}) _readWindowSize() {
+    final ffi.Pointer<ffi.Int> widthPtr = calloc<ffi.Int>();
+    final ffi.Pointer<ffi.Int> heightPtr = calloc<ffi.Int>();
+    try {
+      _bindings.krkr2_get_window_size(widthPtr, heightPtr);
+      return (width: widthPtr.value, height: heightPtr.value);
+    } finally {
+      calloc.free(widthPtr);
+      calloc.free(heightPtr);
+    }
+  }
+
+  String? _readErrorMessage() {
+    final ffi.Pointer<ffi.Char> errorPtr = _bindings
+        .krkr2_get_last_error_message();
+    if (errorPtr == ffi.nullptr) {
+      return null;
+    }
+
+    try {
+      final String message = errorPtr.cast<Utf8>().toDartString().trim();
+      return message.isEmpty ? null : message;
+    } catch (_) {
+      return 'Failed to decode engine error message.';
+    }
+  }
+
+  void _updateStartupSnapshot(EngineStartupSnapshot snapshot) {
+    if (_startupSnapshot.value == snapshot) {
+      return;
+    }
+    _startupSnapshot.value = snapshot;
+  }
+
+  EngineStartupState _mapStartupState(int state) {
+    switch (state) {
+      case 1:
+        return EngineStartupState.starting;
+      case 2:
+        return EngineStartupState.running;
+      case 3:
+        return EngineStartupState.failed;
+      case 0:
+      default:
+        return EngineStartupState.idle;
     }
   }
 }

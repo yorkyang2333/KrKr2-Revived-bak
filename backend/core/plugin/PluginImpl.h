@@ -12,6 +12,8 @@
 #define PluginImplH
 //---------------------------------------------------------------------------
 #include <memory.h>
+#include <string>
+#include <vector>
 
 #include "PluginIntf.h"
 
@@ -181,6 +183,12 @@ TJS_EXP_FUNC_DEF(void, TVPDoTryBlock,
 //---------------------------------------------------------------------------
 extern bool TVPPluginUnloadedAtSystemExit;
 
+enum class tTVPPluginLoadMode { AutoDiscover, ExplicitLink };
+
 void tvpLoadPlugins();
+bool TVPLoadPlugin(const ttstr &name,
+                   tTVPPluginLoadMode mode = tTVPPluginLoadMode::AutoDiscover);
+void TVPClearPluginFailureLog();
+std::vector<std::string> TVPGetPluginFailureLogSnapshot();
 
 #endif

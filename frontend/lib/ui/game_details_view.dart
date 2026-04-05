@@ -684,7 +684,7 @@ class _GameDetailsViewState extends State<GameDetailsView> {
               _PendingStatusRow(
                 title: 'Plugin loading',
                 detail:
-                    'Headless bridge still stubs plugin discovery and loading.',
+                    'Bundled static plugins are linked into the headless build. Binary-only external plugins still depend on compatibility coverage.',
               ),
               SizedBox(height: 12),
               _PendingStatusRow(
@@ -702,7 +702,7 @@ class _GameDetailsViewState extends State<GameDetailsView> {
               _PendingStatusRow(
                 title: 'Input event bridge',
                 detail:
-                    'Mouse, keyboard, and touch callbacks still need engine routing in headless mode.',
+                    'Basic mouse and keyboard callbacks are routed into headless mode now. Touch and advanced mapping are still pending.',
               ),
             ],
           ),

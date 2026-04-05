@@ -10,6 +10,8 @@
 #include <tuple>
 #include <map>
 
+typedef void (*tTVPDiagnosticCallback)(const char *message);
+
 ttstr ExePath();
 
 // 見通しのよい方法に変更した方が良い
@@ -207,5 +209,10 @@ std::vector<std::string> *LoadLinesFromFile(const ttstr &path);
 // inline HINSTANCE GetHInstance() { return
 // ((HINSTANCE)GetModuleHandle(0)); }
 extern class tTVPApplication *Application;
+
+void TVPSetStartupStepCallback(tTVPDiagnosticCallback callback);
+void TVPSetEngineErrorCallback(tTVPDiagnosticCallback callback);
+void TVPNotifyStartupStep(const ttstr &step);
+void TVPNotifyEngineError(const ttstr &message);
 
 #endif // __T_APPLICATION_H__

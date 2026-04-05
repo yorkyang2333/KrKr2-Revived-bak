@@ -8,12 +8,10 @@ target_sources(${PROJECT_NAME} PUBLIC
     win32dialog.cpp
     dirlist.cpp
     csvParser.cpp
-    layerExMovie.cpp
     varfile.cpp
     saveStruct.cpp
     getabout.cpp
     addFont.cpp
-    wutcwf.cpp
     windowEx.cpp
     getSample.cpp
     layerExPerspective.cpp
@@ -46,26 +44,15 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 
 add_definitions(-D__STDC_CONSTANT_MACROS -DTJS_TEXT_OUT_CRLF)
 
-target_include_directories(${PROJECT_NAME} PUBLIC ${KRKR2PLUGIN_PATH} ${KRKR2PLUGIN_PATH}/simplebinder})
+target_include_directories(${PROJECT_NAME} PUBLIC
+    ${KRKR2PLUGIN_PATH}
+    ${KRKR2PLUGIN_PATH}/simplebinder
+)
 target_link_libraries(${PROJECT_NAME} PUBLIC krkr2core)
 
-add_subdirectory(psdfile)
-add_subdirectory(psbfile)
-add_subdirectory(layerex_draw)
-add_subdirectory(motionplayer)
-
-#add_subdirectory(json)
-add_subdirectory(fstat)
-#add_subdirectory(steam)
-#add_subdirectory(DrawDeviceForSteam)
-target_link_libraries(${PROJECT_NAME} PUBLIC
-        psdfile
-        psbfile
-        layerExDraw
-        motionplayer
-        fstat
-#        json steam DrawDeviceForSteam
-)
+# Heavier plugin subprojects still depend on video/JSON stacks that are not
+# part of the current headless macOS bundle. Keep the first-pass static plugin
+# set focused on the plugins the headless bridge can actually ship today.
 
 find_package(fmt CONFIG REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE fmt::fmt)

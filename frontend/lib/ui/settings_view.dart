@@ -312,16 +312,16 @@ class SettingsDashboard extends StatelessWidget {
       keyName: 'capability-plugin-loading',
       title: 'Plugin loading',
       summary:
-          'Unavailable for now. Headless bridge still stubs plugin loading.',
-      available: false,
-      icon: Icons.extension_off_outlined,
+          'Bundled static plugins load through the headless bridge. Binary-only external plugins still depend on compatibility coverage.',
+      available: true,
+      icon: Icons.extension_outlined,
     ),
     CapabilityStatus(
       keyName: 'capability-input-injection',
       title: 'Input bridge',
       summary:
-          'Pending. Mouse, key, and touch forwarding stubs still need engine routing.',
-      available: false,
+          'Basic mouse and keyboard forwarding are routed into the engine. Touch and advanced remapping still need more work.',
+      available: true,
       icon: Icons.input_outlined,
     ),
     CapabilityStatus(

@@ -19,6 +19,7 @@
 #include "SystemIntf.h"
 #include "EventIntf.h"
 #include "SysInitIntf.h"
+#include "StorageIntf.h"
 #include "RegistryEmulation.h"
 #include "TickCount.h"
 #include "ComplexRect.h"

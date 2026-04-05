@@ -13,10 +13,12 @@ set(VISUAL_SOURCE_FILES
     ${VISUAL_PATH}/RectItf.cpp
     ${VISUAL_PATH}/VideoOvlIntf.cpp
     ${VISUAL_PATH}/LayerBitmapIntf.cpp
+    ${VISUAL_PATH}/LayerImpl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../platform/legacy_cocos2d/visual/impl/LayerBitmapImpl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../platform/legacy_cocos2d/visual/impl/DrawDevice.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../platform/legacy_cocos2d/visual/impl/MenuItemImpl.cpp
     ${VISUAL_PATH}/FontImpl.cpp
-#     ${VISUAL_PATH}/RenderManager.cpp
+    ${VISUAL_PATH}/RenderManager.cpp
     ${VISUAL_PATH}/LoadJPEG.cpp
     ${VISUAL_PATH}/GraphicsLoaderIntf.cpp
     ${VISUAL_PATH}/SaveTLG6.cpp
@@ -60,6 +62,7 @@ set(VISUAL_HEADERS_DIR
 add_library(${PROJECT_NAME} STATIC ${VISUAL_SOURCE_FILES})
 target_include_directories(${PROJECT_NAME} PUBLIC ${VISUAL_HEADERS_DIR})
 target_link_libraries(${PROJECT_NAME} PUBLIC tjs2 PRIVATE core_base_module core_utils_module)
+target_compile_definitions(${PROJECT_NAME} PRIVATE XXH_INLINE_ALL)
 
 # Rust TLG decoder (krkr2-image crate) + C++ adapter
 if(TARGET krkr2_image_adapter)

@@ -4,7 +4,13 @@ project(krkr2platform LANGUAGES CXX)
 if (BUILD_AS_LIBRARY)
     add_library(${PROJECT_NAME} STATIC
         environ_headless/krkr2_api_impl.cpp
+        environ_headless/SystemControl.cpp
     )
+    if(APPLE)
+        target_sources(${PROJECT_NAME} PRIVATE
+            environ_headless/MacDialogs.mm
+        )
+    endif()
 else()
     add_library(${PROJECT_NAME} STATIC
         environ_legacy/sdl/SDLWindow.cpp

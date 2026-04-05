@@ -44,6 +44,32 @@ std::thread::id TVPMainThreadID;
 static tTJSCriticalSection _NoMemCallBackCS;
 static void *_reservedMem = malloc(1024 * 1024 * 4); // 4M reserved mem
 static bool _project_startup = false;
+static tTVPDiagnosticCallback g_startupStepCallback = nullptr;
+static tTVPDiagnosticCallback g_engineErrorCallback = nullptr;
+
+void TVPSetStartupStepCallback(tTVPDiagnosticCallback callback) {
+    g_startupStepCallback = callback;
+}
+
+void TVPSetEngineErrorCallback(tTVPDiagnosticCallback callback) {
+    g_engineErrorCallback = callback;
+}
+
+void TVPNotifyStartupStep(const ttstr &step) {
+    if(!g_startupStepCallback)
+        return;
+
+    const std::string message = step.AsStdString();
+    g_startupStepCallback(message.c_str());
+}
+
+void TVPNotifyEngineError(const ttstr &message) {
+    if(!g_engineErrorCallback)
+        return;
+
+    const std::string utf8 = message.AsStdString();
+    g_engineErrorCallback(utf8.c_str());
+}
 
 static void _do_compact() { TVPDeliverCompactEvent(TVP_COMPACT_LEVEL_MAX); }
 
@@ -320,19 +346,23 @@ bool tTVPApplication::StartApplication(ttstr path) {
 
         TVPNativeProjectDir = path;
         ttstr msg1 = ttstr("[KRKR2] Step 1: Init start, raw path=") + path;
+        TVPNotifyStartupStep(TJS_W("Step 1/10: Preparing project path"));
         TVPAddImportantLog(msg1);
 
         // Step 2: InitializeBaseSystems sets up storage media manager.
         // This MUST happen before TVPNormalizeStorageName is called.
+        TVPNotifyStartupStep(TJS_W("Step 2/10: Initializing base systems"));
         TVPAddImportantLog(ttstr("[KRKR2] Step 2: InitializeBaseSystems"));
         TVPInitializeBaseSystems();
 
         // Step 3: Now the storage media manager is ready, normalize and set project dir
         TVPProjectDir = TVPNormalizeStorageName(path);
         ttstr msg4b = ttstr("[KRKR2] Step 3: ProjectDir=") + TVPProjectDir;
+        TVPNotifyStartupStep(TJS_W("Step 3/10: Normalizing project directory"));
         TVPAddImportantLog(msg4b);
         TVPAddLog(ttstr("[INIT] ProjectDir set"));
 
+        TVPNotifyStartupStep(TJS_W("Step 4/10: Initializing fonts"));
         TVPAddImportantLog(ttstr("[KRKR2] Step 4: InitFontNames"));
         TVPInitFontNames();
 
@@ -340,6 +370,7 @@ bool tTVPApplication::StartApplication(ttstr path) {
         TVPAddImportantLog(TVPFormatMessage(TVPProgramStartedOn, TVPGetOSName(),
                                             TVPGetPlatformName()));
 
+        TVPNotifyStartupStep(TJS_W("Step 5/10: Creating application services"));
         TVPAddImportantLog(ttstr("[KRKR2] Step 5: Initialize"));
         Initialize();
 
@@ -348,11 +379,14 @@ bool tTVPApplication::StartApplication(ttstr path) {
         if(TVPExecuteUserConfig())
             return true;
 
+        TVPNotifyStartupStep(TJS_W("Step 6/10: Starting async image loader"));
         TVPAddImportantLog(ttstr("[KRKR2] Step 6: AsyncImageLoader"));
         image_load_thread_ = new tTVPAsyncImageLoader();
 
+        TVPNotifyStartupStep(TJS_W("Step 7/10: Loading plugins"));
         TVPAddImportantLog(ttstr("[KRKR2] Step 7: LoadPlugins"));
         tvpLoadPlugins(); // load plugin module *.tpm
+        TVPNotifyStartupStep(TJS_W("Step 8/10: System initialization"));
         TVPAddImportantLog(ttstr("[KRKR2] Step 8: SystemInit"));
         TVPSystemInit();
 
@@ -364,11 +398,14 @@ bool tTVPApplication::StartApplication(ttstr path) {
         CheckDigitizer();
 
         // start image load thread
+        TVPNotifyStartupStep(TJS_W("Step 9/10: Resuming image loader"));
         TVPAddImportantLog(ttstr("[KRKR2] Step 9: Resume imageLoader"));
         image_load_thread_->Resume();
 
+        TVPNotifyStartupStep(TJS_W("Step 10/10: Executing startup scripts"));
         TVPAddImportantLog(ttstr("[KRKR2] Step 10: InitializeStartupScript"));
         TVPInitializeStartupScript();
+        TVPNotifyStartupStep(TJS_W("Startup complete"));
         TVPAddImportantLog(ttstr("[KRKR2] DONE - StartApplication succeeded"));
         _project_startup = true;
         return true;
@@ -506,6 +543,7 @@ void tTVPApplication::BringToFront() {
 }
 #endif
 void tTVPApplication::ShowException(const ttstr &e) {
+    TVPNotifyEngineError(e);
     // Log the exception so it appears in the Flutter console
     TVPAddLog(ttstr(TJS_W("[FATAL ERROR] ")) + e);
     // NOTE: Do NOT call TVPSystemUninit() here - in headless mode it deadlocks

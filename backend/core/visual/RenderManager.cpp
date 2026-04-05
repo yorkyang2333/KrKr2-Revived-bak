@@ -7,21 +7,11 @@
 #include <algorithm>
 #include "ThreadIntf.h"
 #include "argb.h"
-extern "C" {
 #include <stdint.h>
-#ifndef UINT64_C
-#define UINT64_C(x) (x##ULL)
-#endif
-#ifndef __STDC_CONSTANT_MACROS
-#define __STDC_CONSTANT_MACROS
-#endif
-#include "libswscale/swscale.h"
-};
 #include "opencv2/opencv.hpp"
 #include "Application.h"
 #include "Platform.h"
 #include "ConfigManager/IndividualConfigManager.h"
-#include "xxhash/xxhash.h"
 #include "tjsHashSearch.h"
 #include "EventIntf.h"
 #include "lz4.h"
@@ -52,6 +42,17 @@ struct tTVPLayerBitmapMemoryRecord {
 #endif
 
 static uint64_t _totalVMemSize = 0;
+
+static tjs_uint32 TVPHashBytes(const tjs_uint8 *data, size_t size, tjs_uint32 seed) {
+    // FNV-1a is enough here; this hash is only used to deduplicate
+    // half-resolution software texture scanlines.
+    tjs_uint32 hash = 2166136261u ^ seed;
+    for(size_t index = 0; index < size; ++index) {
+        hash ^= data[index];
+        hash *= 16777619u;
+    }
+    return hash;
+}
 
 //---------------------------------------------------------------------------
 static void *TVPAllocBitmapBits(tjs_uint size, tjs_uint width,
@@ -480,10 +481,10 @@ public:
         std::unordered_map<tjs_uint32, const tjs_uint8 *> usedPixel;
         tjs_uint32 seed = (intptr_t)bmp;
         if(w <= EMPTY_LINE_BYTES)
-            usedPixel[XXH32(_empty_line, w, seed)] = _empty_line;
+            usedPixel[TVPHashBytes(_empty_line, w, seed)] = _empty_line;
 
         for(unsigned int l = 0; l < h; ++l, src += pitch2) {
-            tjs_uint32 hash = XXH32(src, w, seed);
+            tjs_uint32 hash = TVPHashBytes(src, w, seed);
             auto it = usedPixel.find(hash);
             if(it == usedPixel.end()) {
                 tjs_uint8 *line = (tjs_uint8 *)TVPAllocBitmapBits(w, Width, h);

@@ -18,9 +18,11 @@ set(BASE_SOURCE_FILES
     ${BASE_PATH}/ZIPArchive.cpp
     ${BASE_PATH}/KAGParser.cpp
     ${BASE_PATH}/MsgIntf.cpp
+    ${BASE_PATH}/impl/EventImpl.cpp
     ${BASE_PATH}/impl/StorageImpl.cpp
     ${BASE_PATH}/impl/SysInitImpl.cpp
     ${BASE_PATH}/impl/NativeEventQueue.cpp
+    ${BASE_PATH}/impl/SystemImpl.cpp
 )
 
 set(BASE_HEADERS_DIR
@@ -39,6 +41,13 @@ target_include_directories(${PROJECT_NAME} PUBLIC
     ${BASE_HEADERS_DIR}
     ${KRKR2_ENCODING_INCLUDE_DIR}
 )
+
+if(BUILD_AS_LIBRARY)
+    target_include_directories(${PROJECT_NAME} PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../platform/environ_headless
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../platform/legacy_cocos2d/visual/impl
+    )
+endif()
 
 find_package(minizip-ng CONFIG REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE MINIZIP::minizip-ng)

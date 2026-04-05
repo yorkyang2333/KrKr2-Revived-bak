@@ -14,4 +14,7 @@ set(PLUGIN_HEADERS_DIR
 
 add_library(${PROJECT_NAME} STATIC ${PLUGIN_SOURCE_FILES})
 target_include_directories(${PROJECT_NAME} PUBLIC ${PLUGIN_HEADERS_DIR})
-target_link_libraries(${PROJECT_NAME} PUBLIC tjs2 PRIVATE core_base_module core_visual_module core_utils_module)
+target_include_directories(${PROJECT_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../rust/krkr2-crypto/include
+)
+target_link_libraries(${PROJECT_NAME} PUBLIC tjs2 PRIVATE core_base_module core_visual_module core_utils_module krkr2-crypto)
