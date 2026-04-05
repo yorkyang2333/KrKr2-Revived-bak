@@ -25,6 +25,7 @@ This repository is currently undergoing a **full architectural refactor** — de
 - [Supported Platforms](#supported-platforms)
 - [Build Dependencies](#build-dependencies)
 - [Build Steps](#build-steps)
+- [Repository Hygiene](#repository-hygiene)
 - [Architecture](#architecture)
 - [Refactor Progress](#refactor-progress)
 - [Supported Games](#supported-games)
@@ -78,6 +79,11 @@ set VCPKG_ROOT=D:/vcpkg
 
 ## Build Steps
 
+**Quick build (backend + Flutter frontend)**:
+```bash
+./build_all.sh
+```
+
 **macOS**:
 ```bash
 cmake --preset="MacOS Debug Config"
@@ -108,6 +114,22 @@ cmake --build --preset="MacOS Debug Build"
 docker build -f dockers/linux.Dockerfile -t linux-builder .
 docker build -f dockers/android.Dockerfile -t android-builder .
 ```
+
+---
+
+## Repository Hygiene
+
+The following paths are local build artifacts and can be safely deleted when cleaning the workspace:
+
+- `build/`
+- `out/`
+- `frontend/build/`
+- `frontend/.dart_tool/`
+- `frontend/macos/krkr2_libs/`
+- `*.log`
+- `.DS_Store`
+
+The root `.gitignore` already excludes these generated files so they do not pollute `git status`.
 
 ---
 
@@ -154,6 +176,7 @@ KrKr2-Revived/
 │       ├── legacy_cocos2d/    ← Original cocos2d renderer (to be replaced)
 │       └── environ_legacy/    ← Platform implementations (win32/ apple/ android/ linux/ sdl/)
 ├── platforms/                 ← Platform projects (Android Gradle, etc.)
+├── frontend/                  ← Flutter launcher UI and FFI bridge
 ├── doc/                       ← Documentation
 ├── scripts/                   ← Build scripts
 ├── tests/                     ← Tests
@@ -206,11 +229,12 @@ Verified compiling (macOS arm64):
 - [x] `WindowImpl.cpp` refactored to use `IWindow`/`IRenderer` instead of Win32/Cocos APIs
 - [x] `krkr2_api.h` and `krkr2_renderer.h` updated with window management and renderer APIs
 
-### Phase 5: Flutter UI Integration ⬜ Not started
+### Phase 5: Flutter UI Integration 🚧 In progress
 
-- [ ] Initialize Flutter `frontend/` project
-- [ ] Dart FFI bindings for C-API
-- [ ] Rewrite UI (main menu, console, file selector)
+- [x] Initialize Flutter `frontend/` project
+- [x] Dart FFI bindings for C-API
+- [x] Rewrite core launcher views in Flutter (main menu, console, file selector) - ongoing polish
+- [x] Link the macOS frontend with the backend static library pipeline
 - [ ] CI/CD for all platforms
 
 ---

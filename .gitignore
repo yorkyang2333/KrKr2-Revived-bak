@@ -50,6 +50,7 @@ java_pid*.hprof
 .packages
 .pub-cache/
 .pub/
+frontend/macos/krkr2_libs/
 
 # macOS / iOS build
 Pods/
