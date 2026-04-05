@@ -34,6 +34,7 @@
 #include "combase.h"
 
 #include "spdlog/spdlog.h"
+#include <cerrno>
 
 #ifdef WIN32
 #include <io.h>
@@ -186,8 +187,11 @@ void TVPListDir(const std::string &u8folder,
     // ---------------- Linux/macOS 分支 ----------------
 
     DIR *dirp = opendir(u8folder.c_str());
-    if(!dirp)
+    if(!dirp) {
+        fprintf(stderr, "[KRKR2] TVPListDir: opendir failed for %s (errno: %d)\n", u8folder.c_str(), errno);
         return;
+    }
+    fprintf(stderr, "[KRKR2] TVPListDir: opendir success for %s\n", u8folder.c_str());
 
     dirent *dp;
     while((dp = readdir(dirp))) {
@@ -337,6 +341,34 @@ void tTVPFileMedia::GetLocallyAccessibleName(ttstr &name) {
         ptr += 2; // skip "./"
         newname.Clear();
     }
+#if defined(__APPLE__)
+    // On macOS App Sandbox, opendir("/") fails, breaking the case normalization loop.
+    // We fast-path NativeProjectDir and NativeDataPath which are explicitly authorized and preserves the native exact cases.
+    extern ttstr TVPNativeProjectDir;
+    extern ttstr TVPNativeDataPath;
+    
+    auto replacePrefix = [](ttstr &path, const ttstr &nativePrefix) -> bool {
+        if (nativePrefix.IsEmpty()) return false;
+        ttstr lowerPrefix = nativePrefix;
+        tjs_char *p = lowerPrefix.Independ();
+        while(*p) {
+            if(*p >= TJS_W('A') && *p <= TJS_W('Z')) *p += TJS_W('a') - TJS_W('A');
+            p++;
+        }
+        if (path.StartsWith(lowerPrefix)) {
+            path = nativePrefix + ttstr(path.c_str() + lowerPrefix.GetLen());
+            return true;
+        }
+        return false;
+    };
+
+    ttstr pathStr = ttstr(TJS_W("/")) + ptr;
+    if (replacePrefix(pathStr, TVPNativeDataPath) || replacePrefix(pathStr, TVPNativeProjectDir)) {
+        name = pathStr;
+        return;
+    }
+#endif
+
 #if CC_TARGET_PLATFORM == CC_PLATFORM_IOS
     {
         std::string prefix = "/";
@@ -473,8 +505,14 @@ TJS_EXP_FUNC_DEF(void, TVPAutoMountArchives, (const ttstr &projectDir)) {
         }
     }
 
-    std::string nativeFolder = folder.AsStdString();
-    if (nativeFolder.empty()) return;
+    ttstr nativeFolderTT = folder;
+    TVPGetLocalName(nativeFolderTT);
+    std::string nativeFolder = nativeFolderTT.AsStdString();
+    if (nativeFolder.empty()) {
+        fprintf(stderr, "[KRKR2] TVPAutoMountArchives: nativeFolder is EMPTY for %s\n", folder.AsStdString().c_str());
+        return;
+    }
+    fprintf(stderr, "[KRKR2] TVPAutoMountArchives: nativeFolder = %s\n", nativeFolder.c_str());
 
     std::vector<std::string> archives;
     TVPListDir(nativeFolder, [&](const std::string &filename, int mask) {

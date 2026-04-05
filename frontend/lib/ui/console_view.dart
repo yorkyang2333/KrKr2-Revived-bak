@@ -26,6 +26,11 @@ class _ConsoleViewState extends State<ConsoleView> {
             child: StreamBuilder<String>(
               stream: _engine.logStream,
               builder: (context, snapshot) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (_scrollController.hasClients) {
+                    _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+                  }
+                });
                 return ListView.builder(
                   controller: _scrollController,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

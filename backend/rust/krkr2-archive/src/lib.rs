@@ -192,17 +192,19 @@ impl Xp3Stream {
         } else {
             let cache_key = SegmentCache::key(&self.archive_name, self.storage_index, self.cur_segment_idx);
             
+            let cached_segment = SEGMENT_CACHE.lock().unwrap().get(&cache_key);
+            
             // Check cache
-            if let Some(cached) = SEGMENT_CACHE.lock().unwrap().get(&cache_key) {
+            if let Some(cached) = cached_segment {
                 self.segment_data = Some(cached);
             } else {
                 // Read and uncompress
                 self.stream.seek(seg.start as i64, 0);
                 
-                let mut compressed = vec![0u8; seg.arc_size as usize];
-                self.stream.read_buffer(&mut compressed);
+                let mut comp_data = vec![0u8; seg.arc_size as usize];
+                self.stream.read_buffer(&mut comp_data);
                 
-                let mut decoder = ZlibDecoder::new(&compressed[..]);
+                let mut decoder = ZlibDecoder::new(&comp_data[..]);
                 let mut uncompressed = Vec::with_capacity(seg.org_size as usize);
                 decoder.read_to_end(&mut uncompressed).map_err(|e| format!("Zlib decode error: {}", e))?;
                 
@@ -210,12 +212,13 @@ impl Xp3Stream {
                     return Err("Uncompressed size mismatch".into());
                 }
 
+                let uncompressed = Arc::new(uncompressed);
                 if seg.org_size >= TVP_SEGCACHE_ONE_LIMIT as u64 {
-                    self.segment_data = Some(Arc::new(uncompressed));
+                    self.segment_data = Some(uncompressed);
                 } else {
                     let mut lock = SEGMENT_CACHE.lock().unwrap();
-                    lock.insert(cache_key.clone(), uncompressed);
-                    self.segment_data = Some(lock.get(&cache_key).unwrap());
+                    lock.insert(cache_key.clone(), (*uncompressed).clone());
+                    self.segment_data = Some(uncompressed);
                 }
             }
         }

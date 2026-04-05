@@ -23,6 +23,7 @@
 // #include "SystemControl.h"
 #include "../utils/win32/TVPTimer.h"
 #include "EventIntf.h"
+#include "StorageImpl.h"
 // #include "MouseCursor.h"
 #include "SystemImpl.h"
 #include "WaveImpl.h"
@@ -306,34 +307,38 @@ bool tTVPApplication::StartApplication(ttstr path) {
     _cancel = mgr->GetText("cancel");
     _msg = mgr->GetText("err_no_memory");
     _title = mgr->GetText("err_occured");
-    TVPNativeProjectDir = path;
 
     CheckConsole();
 
     // try starting the program!
     try {
+        if(TVPCheckExistentLocalFolder(path)) {
+            if(!path.IsEmpty() && path.c_str()[path.GetLen() - 1] != TJS_W('/')) {
+                path += TJS_W("/");
+            }
+        }
+
+        TVPNativeProjectDir = path;
         ttstr msg1 = ttstr("[KRKR2] Step 1: Init start, raw path=") + path;
         TVPAddImportantLog(msg1);
 
-        // Now the storage media manager is ready, normalize and set project dir
+        // Step 2: InitializeBaseSystems sets up storage media manager.
+        // This MUST happen before TVPNormalizeStorageName is called.
+        TVPAddImportantLog(ttstr("[KRKR2] Step 2: InitializeBaseSystems"));
+        TVPInitializeBaseSystems();
+
+        // Step 3: Now the storage media manager is ready, normalize and set project dir
         TVPProjectDir = TVPNormalizeStorageName(path);
-        ttstr msg4b = ttstr("[KRKR2] Step 1b: ProjectDir=") + TVPProjectDir;
+        ttstr msg4b = ttstr("[KRKR2] Step 3: ProjectDir=") + TVPProjectDir;
         TVPAddImportantLog(msg4b);
         TVPAddLog(ttstr("[INIT] ProjectDir set"));
 
-        TVPAddImportantLog(ttstr("[KRKR2] Step 2: InitScriptEngine"));
-        TVPInitScriptEngine();
+        TVPAddImportantLog(ttstr("[KRKR2] Step 4: InitFontNames"));
+        TVPInitFontNames();
 
         // banner
         TVPAddImportantLog(TVPFormatMessage(TVPProgramStartedOn, TVPGetOSName(),
                                             TVPGetPlatformName()));
-
-        // InitializeBaseSystems sets up storage media manager, MUST come before NormalizeStorageName
-        TVPAddImportantLog(ttstr("[KRKR2] Step 4: InitializeBaseSystems"));
-        TVPInitializeBaseSystems();
-
-        TVPAddImportantLog(ttstr("[KRKR2] Step 3: InitFontNames"));
-        TVPInitFontNames();
 
         TVPAddImportantLog(ttstr("[KRKR2] Step 5: Initialize"));
         Initialize();

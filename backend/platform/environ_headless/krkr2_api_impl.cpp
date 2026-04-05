@@ -82,9 +82,53 @@ std::shared_ptr<IWindow> TVPCreateAndAddWindow(tTJSNI_Window* /*w*/) {
 static krkr2_log_callback_t g_logCallback = nullptr;
 static std::string g_gamePath;
 
+// --- Engine thread state ---
+// The engine startup (StartApplication) is a long-running, potentially
+// blocking operation. We run it in a dedicated background thread so that
+// Flutter's UI thread (which calls krkr2_init) is never blocked.
+//
+// After startup completes, krkr2_tick() drives the engine's per-frame
+// event loop from Flutter's Ticker (also on the UI thread). A mutex
+// serializes startup vs tick so the engine's internals (TJS event queue,
+// timers) are never accessed from two threads simultaneously.
+#include <thread>
+#include <mutex>
+#include <atomic>
+#include <queue>
+
+static std::thread            g_engineThread;
+static std::mutex             g_engineMutex;
+static std::atomic<bool>      g_startupDone{false};
+static std::atomic<bool>      g_startupSuccess{false};
+
+// ---------------------------------------------------------------------------
+// Thread-safe log queue
+// ---------------------------------------------------------------------------
+// krkr2_log_hook is called from the C++ startup background thread.
+// g_logCallback is a Dart NativeCallable.isolateLocal — it may ONLY be
+// invoked from the Dart isolate thread.  Therefore we never call it directly
+// from the background thread; instead we buffer the message here and flush
+// the queue inside krkr2_tick(), which is always called on the Dart thread.
+static std::mutex             g_logMutex;
+static std::queue<std::string> g_logQueue;
+
 static void krkr2_log_hook(const ttstr &line) {
-    if (g_logCallback) {
-        g_logCallback(0, line.AsStdString().c_str());
+    // Buffer the log message — safe to call from any thread.
+    std::lock_guard<std::mutex> lk(g_logMutex);
+    g_logQueue.push(line.AsStdString());
+}
+
+// Flush buffered log messages.  Must be called from the Dart thread.
+static void krkr2_flush_logs() {
+    if (!g_logCallback) return;
+    std::queue<std::string> tmp;
+    {
+        std::lock_guard<std::mutex> lk(g_logMutex);
+        tmp.swap(g_logQueue);
+    }
+    while (!tmp.empty()) {
+        g_logCallback(0, tmp.front().c_str());
+        tmp.pop();
     }
 }
 
@@ -113,15 +157,39 @@ bool krkr2_init(int argc, char** argv) {
     if (!Application) {
         Application = new tTVPApplication();
     }
-    Application->ArgC = argc;
-    Application->ArgV = argv;
-    ttstr path = TJS_W("");
-    if (!g_gamePath.empty()) {
-        path = ttstr(g_gamePath.c_str());
-    } else if (argc > 1 && argv[1]) {
-        path = ttstr(argv[1]);
+
+    // Copy the path before starting the thread (argv may be stack-allocated)
+    std::string pathStr = g_gamePath;
+    if (pathStr.empty() && argc > 1 && argv[1]) {
+        pathStr = argv[1];
     }
-    return Application->StartApplication(path);
+
+    g_startupDone    = false;
+    g_startupSuccess = false;
+
+    // Spawn the engine startup in a background thread.
+    // krkr2_tick() will be a no-op until g_startupDone becomes true.
+    g_engineThread = std::thread([pathStr]() {
+        ttstr path(pathStr.c_str());
+        fprintf(stderr, "[KRKR2] Engine startup thread starting, path=%s\n",
+                pathStr.c_str());
+
+        bool ok = false;
+        {
+            std::lock_guard<std::mutex> lock(g_engineMutex);
+            ok = Application->StartApplication(path);
+        }
+
+        g_startupSuccess = ok;
+        g_startupDone    = true;
+
+        fprintf(stderr, "[KRKR2] Engine startup thread finished, result=%d\n",
+                (int)ok);
+    });
+    g_engineThread.detach();
+
+    // Return true immediately — Flutter is not blocked.
+    return true;
 }
 
 void krkr2_shutdown() {
@@ -130,12 +198,25 @@ void krkr2_shutdown() {
         delete Application;
         Application = nullptr;
     }
+    g_startupDone = true; // unblock any waiting tick
 }
 
 void krkr2_tick() {
-    if (Application) {
-        Application->Run();
-    }
+    // Always flush buffered log messages first, regardless of startup state.
+    // This is safe because krkr2_tick is always called from the Dart thread,
+    // and g_logCallback (NativeCallable.isolateLocal) requires the Dart thread.
+    krkr2_flush_logs();
+
+    // Do not drive the engine until startup has finished.
+    if (!g_startupDone.load(std::memory_order_acquire)) return;
+    if (!Application) return;
+
+    // Serialize tick with the mutex so that if startup is still holding
+    // the lock for some reason we don't race on the engine internals.
+    std::unique_lock<std::mutex> lock(g_engineMutex, std::try_to_lock);
+    if (!lock.owns_lock()) return; // startup still running — skip this tick
+
+    Application->Run();
 }
 
 void krkr2_push_mouse_event(int type, int button, int x, int y) {

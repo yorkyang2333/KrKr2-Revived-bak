@@ -211,11 +211,12 @@ KrKr2-Revived/
 - [x] `WindowImpl.cpp` 重构：使用 `IWindow`/`IRenderer` 代替 Win32/Cocos API
 - [x] 更新 `krkr2_api.h` 和 `krkr2_renderer.h`
 
-### 阶段四：Flutter UI 整合 ⬜ 待开始
+### 阶段五：Flutter UI 整合 🚧 进行中
 
-- [ ] 初始化 Flutter `frontend/` 工程
-- [ ] Dart FFI 绑定 C-API
-- [ ] 用 Flutter 重写主菜单、控制台、文件选择器
+- [x] 初始化 Flutter `frontend/` 工程
+- [x] Dart FFI 绑定 C-API
+- [x] 用 Flutter 重写主菜单、控制台、文件选择器 (进行中)
+- [x] 成功链接 macOS 平台并彻底修补原生游戏路径自动挂载问题及初始化黑屏死锁
 - [ ] CI/CD 全平台自动编译
 
 ---

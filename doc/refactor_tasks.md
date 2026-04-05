@@ -200,8 +200,13 @@ KrKr2-Revived/
 | 成功链接并执行 macOS Headless 构建，无依赖挂起 | ✅ |
 | 修复 macOS 下 FFI 崩溃、日志不显示及因路径挂载顺序导致的黑屏死锁与启动抛错 | ✅ |
 | **修复引擎启动初期黑屏崩溃异常（处理 `TVPGetAppPath()` 生命周期导致的 `[RAW: '']` 空路径访问抛出致命错误）** | ✅ |
+| **Flutter UI 增强：初始化并实装日志控制台在有新数据输出时的自动吸附与滚屏至底部功能** | ✅ |
+| **修复游戏目录路径因缺少 `/` 尾随斜杠引发的路径解析截断及 `TVPAutoMountArchives` POSIX 挂载失效导致的无法读取 `startup.tjs` 与 `Data path does not exist` 生成失败问题** | ✅ |
+| **修复 Play 按钮点击崩溃：`StartApplication` 中调用顺序错误——`TVPNormalizeStorageName` 在 `TVPInitializeBaseSystems`（存储子系统）初始化之前被调用；以及 `TVPInitScriptEngine` 被重复调用两次（`StartApplication` Step 2 + `TVPSystemInit` 内部）导致 TJS2 引擎双重初始化崩溃** | ✅ |
+| **修复 Play 按钮点击卡死：`krkr2_init` 在 Flutter UI 线程同步运行 `StartApplication`（涉及 XP3 挂载、字体扫描、TJS 脚本执行等长耗时操作），导致 Flutter 完全冻结。改为后台 `std::thread` 异步执行启动流程，`krkr2_init` 立即返回 `true`；`krkr2_tick` 通过 `g_startupDone` flag 和 `std::try_to_lock` 保证在启动完成后才驱动引擎事件循环，同时避免启动/tick 并发竞争** | ✅ |
 
 ---
+
 
 ## 四、关键文件改动记录
 
