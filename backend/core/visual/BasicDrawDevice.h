@@ -14,7 +14,7 @@ public:
     static tjs_uint32 ClassID;
 
 protected:
-    tTJSNativeInstance *CreateNativeInstance() override { return nullptr; }
+    tTJSNativeInstance *CreateNativeInstance() override;
 };
 
 #endif

@@ -41,6 +41,9 @@ void* krkr2_get_primary_native_window();
 // Headless / Windowless Support
 // ---------------------------------------------------------------------------
 void krkr2_set_game_path(const char* path);
+void krkr2_set_global_option(const char* key, const char* value);
+void krkr2_set_current_game_option(const char* key, const char* value);
+void krkr2_clear_current_game_option(const char* key);
 
 // ---------------------------------------------------------------------------
 // Logging & Debugging

@@ -20,6 +20,7 @@ vcpkg_installed/
 .vs/
 .gradle/
 .act/
+.claude/
 .DS_Store
 
 # Misc

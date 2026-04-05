@@ -1,11 +1,15 @@
-import 'package:flutter/material.dart';
-import 'engine_controller.dart';
-import 'ui/theme.dart';
-import 'ui/main_menu.dart';
-import 'ui/console_view.dart';
 import 'package:dynamic_color/dynamic_color.dart';
+import 'package:flutter/material.dart';
 
-void main() async {
+import 'data/launcher_settings_repository.dart';
+import 'engine_controller.dart';
+import 'models/launcher_settings.dart';
+import 'ui/console_view.dart';
+import 'ui/game_profile.dart';
+import 'ui/main_menu.dart';
+import 'ui/theme.dart';
+
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const KrKr2App());
 }
@@ -21,13 +25,15 @@ class KrKr2App extends StatelessWidget {
           title: 'KrKr2 Revived',
           theme: AppTheme.lightTheme(lightDynamic),
           darkTheme: AppTheme.darkTheme(darkDynamic),
-          themeMode: ThemeMode.system, // Fully supports auto light/dark toggle
+          themeMode: ThemeMode.system,
           home: Builder(
-            builder: (context) => MainMenuScreen(
-              onGameSelected: (path) {
-                Navigator.push(
+            builder: (BuildContext context) => MainMenuScreen(
+              onGameSelected: (GameProfile profile) {
+                Navigator.push<void>(
                   context,
-                  MaterialPageRoute(builder: (_) => KrKr2GameScreen(gamePath: path)),
+                  MaterialPageRoute<void>(
+                    builder: (_) => KrKr2GameScreen(profile: profile),
+                  ),
                 );
               },
             ),
@@ -39,9 +45,9 @@ class KrKr2App extends StatelessWidget {
 }
 
 class KrKr2GameScreen extends StatefulWidget {
-  final String gamePath;
+  const KrKr2GameScreen({super.key, required this.profile});
 
-  const KrKr2GameScreen({super.key, required this.gamePath});
+  final GameProfile profile;
 
   @override
   State<KrKr2GameScreen> createState() => _KrKr2GameScreenState();
@@ -49,6 +55,9 @@ class KrKr2GameScreen extends StatefulWidget {
 
 class _KrKr2GameScreenState extends State<KrKr2GameScreen> {
   final EngineController _engine = EngineController();
+  final LauncherSettingsRepository _settingsRepository =
+      LauncherSettingsRepository();
+
   bool _isEngineReady = false;
 
   @override
@@ -58,28 +67,31 @@ class _KrKr2GameScreenState extends State<KrKr2GameScreen> {
   }
 
   Future<void> _initEngine() async {
-    // Auto-open console so user can see what's happening
-    WidgetsBinding.instance.addPostFrameCallback((_) => _showConsole());
-
     try {
-      print('[Flutter] Starting _initEngine...');
-      // Wait for the FFI and Texture bindings to set up
-      await _engine.initialize();
-      print('[Flutter] Engine initialized!');
-      
-      // Pass the user-selected game path into the krkr2_init function
-      bool ready = _engine.startEngine(widget.gamePath);
-      print('[Flutter] Engine started! Result: $ready');
+      final LauncherSettings settings = await _settingsRepository.load();
 
-      // Start engine ticking loop (sync to Flutter display refresh)
+      if (settings.autoOpenConsole) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _showConsole());
+      }
+
+      await _engine.initialize(settings: settings);
+      final bool ready = _engine.startEngine(
+        profile: widget.profile,
+        settings: settings,
+      );
       _engine.startTicker();
-      
+
+      if (!mounted) {
+        return;
+      }
       setState(() {
         _isEngineReady = ready;
       });
-    } catch (e, st) {
-      print('[Flutter] initEngine EXCEPTION: $e\n$st');
-      // Still mark as ready so FAB/console is accessible for debugging
+    } catch (error, stackTrace) {
+      debugPrint('[Flutter] initEngine EXCEPTION: $error\n$stackTrace');
+      if (!mounted) {
+        return;
+      }
       setState(() {
         _isEngineReady = true;
       });
@@ -93,16 +105,19 @@ class _KrKr2GameScreenState extends State<KrKr2GameScreen> {
   }
 
   void _showConsole() {
-    if (!mounted) return;
-    showModalBottomSheet(
+    if (!mounted) {
+      return;
+    }
+
+    showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) => DraggableScrollableSheet(
+      builder: (BuildContext context) => DraggableScrollableSheet(
         initialChildSize: 0.5,
         minChildSize: 0.2,
         maxChildSize: 0.9,
-        builder: (_, controller) => const ConsoleView(),
+        builder: (_, ScrollController controller) => const ConsoleView(),
       ),
     );
   }
@@ -110,24 +125,22 @@ class _KrKr2GameScreenState extends State<KrKr2GameScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black, // Immersive game background
+      backgroundColor: Colors.black,
       body: Stack(
-        children: [
+        children: <Widget>[
           Center(
             child: _isEngineReady && _engine.textureId != null
                 ? AspectRatio(
-                    aspectRatio: 800 / 600, // Typically 800x600 for early krkr2
+                    aspectRatio: 800 / 600,
                     child: Container(
                       color: Colors.black,
-                      // The zero-copy Texture bridged from KrKr2 C++
                       child: Texture(textureId: _engine.textureId!),
                     ),
                   )
                 : _isEngineReady
-                    ? Container(color: Colors.black) // Engine running, no texture yet
-                    : const CircularProgressIndicator(),
+                ? Container(color: Colors.black)
+                : const CircularProgressIndicator(),
           ),
-          // Transparent overlay safety button to go back or open console
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,
             left: 8,
@@ -140,11 +153,13 @@ class _KrKr2GameScreenState extends State<KrKr2GameScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         mini: true,
-        backgroundColor: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.8),
+        backgroundColor: Theme.of(
+          context,
+        ).colorScheme.primaryContainer.withValues(alpha: 0.8),
         onPressed: _showConsole,
         child: Icon(
-          Icons.terminal, 
-          color: Theme.of(context).colorScheme.onPrimaryContainer
+          Icons.terminal,
+          color: Theme.of(context).colorScheme.onPrimaryContainer,
         ),
       ),
     );

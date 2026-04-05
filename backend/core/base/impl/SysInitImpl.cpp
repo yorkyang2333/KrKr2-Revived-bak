@@ -122,15 +122,35 @@ static void TVPInitRandomGenerator() {
 // TVPInitializeBaseSystems
 //---------------------------------------------------------------------------
 void TVPInitializeBaseSystems() {
+    fprintf(stderr, "[KRKR2] TVPInitializeBaseSystems: enter\n"); fflush(stderr);
     // set system archive delimiter
     tTJSVariant v;
+    fprintf(stderr, "[KRKR2] TVPInitializeBaseSystems: calling TVPGetCommandLine\n"); fflush(stderr);
     if(TVPGetCommandLine(TJS_W("-arcdelim"), &v))
         TVPArchiveDelimiter = ttstr(v)[0];
+    fprintf(stderr, "[KRKR2] TVPInitializeBaseSystems: TVPGetCommandLine done\n"); fflush(stderr);
 
     // set default current directory
     {
-        TVPSetCurrentDirectory(
-            IncludeTrailingBackslash(ExtractFileDir(ExePath())));
+        ttstr exepath = ExePath();
+        ttstr dirpath = IncludeTrailingBackslash(ExtractFileDir(exepath));
+        fprintf(stderr, "[KRKR2] TVPInitializeBaseSystems: ExePath()='%s'\n",
+                tTJSNarrowStringHolder(exepath.c_str()).Buf); fflush(stderr);
+        fprintf(stderr, "[KRKR2] TVPInitializeBaseSystems: dirpath='%s'\n",
+                tTJSNarrowStringHolder(dirpath.c_str()).Buf); fflush(stderr);
+        if (!dirpath.IsEmpty()) {
+            TVPSetCurrentDirectory(dirpath);
+            fprintf(stderr, "[KRKR2] TVPInitializeBaseSystems: TVPSetCurrentDirectory done\n"); fflush(stderr);
+        } else {
+            // If ExePath() returned empty or self-root, fallback: use the native project dir directly
+            fprintf(stderr, "[KRKR2] TVPInitializeBaseSystems: dirpath EMPTY, falling back to TVPNativeProjectDir\n"); fflush(stderr);
+            if (!TVPNativeProjectDir.IsEmpty()) {
+                ttstr normalized = TVPNativeProjectDir;
+                if (normalized.GetLastChar() != TJS_W('/')) normalized += TJS_W("/");
+                TVPSetCurrentDirectory(normalized);
+                fprintf(stderr, "[KRKR2] TVPInitializeBaseSystems: fallback TVPSetCurrentDirectory done\n"); fflush(stderr);
+            }
+        }
     }
 
     // load message map file
@@ -138,9 +158,11 @@ void TVPInitializeBaseSystems() {
 
     if(load_msgmap) {
         const tjs_char name_msgmap[] = TJS_W("msgmap.tjs");
+        fprintf(stderr, "[KRKR2] TVPInitializeBaseSystems: checking msgmap.tjs\n"); fflush(stderr);
         if(TVPIsExistentStorage(name_msgmap))
             TVPExecuteStorage(name_msgmap, nullptr, false, TJS_W(""));
     }
+    fprintf(stderr, "[KRKR2] TVPInitializeBaseSystems: done\n"); fflush(stderr);
 }
 
 static tjs_uint64 TVPTotalPhysMemory = 0;

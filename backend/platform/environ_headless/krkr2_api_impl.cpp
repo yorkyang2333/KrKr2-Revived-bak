@@ -1,7 +1,11 @@
 #include "../../../include/krkr2_api.h"
 #include "../../../include/krkr2_renderer.h"
 #include <string>
+#include <unordered_map>
 #include <vector>
+#include <mutex>
+#include <algorithm>
+#include <cctype>
 #include <SDL3/SDL.h>
 
 #include "tjsCommHead.h"
@@ -81,6 +85,9 @@ std::shared_ptr<IWindow> TVPCreateAndAddWindow(tTJSNI_Window* /*w*/) {
 
 static krkr2_log_callback_t g_logCallback = nullptr;
 static std::string g_gamePath;
+static std::unordered_map<std::string, std::string> g_globalOptions;
+static std::unordered_map<std::string, std::string> g_currentGameOptions;
+static std::mutex g_optionMutex;
 
 // --- Engine thread state ---
 // The engine startup (StartApplication) is a long-running, potentially
@@ -92,7 +99,6 @@ static std::string g_gamePath;
 // serializes startup vs tick so the engine's internals (TJS event queue,
 // timers) are never accessed from two threads simultaneously.
 #include <thread>
-#include <mutex>
 #include <atomic>
 #include <queue>
 
@@ -111,6 +117,50 @@ static std::atomic<bool>      g_startupSuccess{false};
 // the queue inside krkr2_tick(), which is always called on the Dart thread.
 static std::mutex             g_logMutex;
 static std::queue<std::string> g_logQueue;
+
+static bool krkr2_try_get_option(const std::string &key, std::string &value) {
+    std::lock_guard<std::mutex> lock(g_optionMutex);
+    auto current = g_currentGameOptions.find(key);
+    if (current != g_currentGameOptions.end()) {
+        value = current->second;
+        return true;
+    }
+    auto global = g_globalOptions.find(key);
+    if (global != g_globalOptions.end()) {
+        value = global->second;
+        return true;
+    }
+    return false;
+}
+
+static void krkr2_set_option(
+    std::unordered_map<std::string, std::string> &target,
+    const char *key,
+    const char *value
+) {
+    if (!key || !value) return;
+    std::lock_guard<std::mutex> lock(g_optionMutex);
+    target[key] = value;
+}
+
+static bool krkr2_parse_bool_value(const std::string &value, bool defVal) {
+    std::string normalized = value;
+    std::transform(
+        normalized.begin(),
+        normalized.end(),
+        normalized.begin(),
+        [](unsigned char c) { return static_cast<char>(std::tolower(c)); }
+    );
+    if (normalized == "1" || normalized == "true" || normalized == "yes" ||
+        normalized == "on") {
+        return true;
+    }
+    if (normalized == "0" || normalized == "false" || normalized == "no" ||
+        normalized == "off") {
+        return false;
+    }
+    return defVal;
+}
 
 static void krkr2_log_hook(const ttstr &line) {
     // Buffer the log message — safe to call from any thread.
@@ -145,12 +195,37 @@ void krkr2_set_game_path(const char* path) {
     }
 }
 
+void krkr2_set_global_option(const char* key, const char* value) {
+    krkr2_set_option(g_globalOptions, key, value);
+}
+
+void krkr2_set_current_game_option(const char* key, const char* value) {
+    krkr2_set_option(g_currentGameOptions, key, value);
+}
+
+void krkr2_clear_current_game_option(const char* key) {
+    std::lock_guard<std::mutex> lock(g_optionMutex);
+    if (!key) {
+        g_currentGameOptions.clear();
+        return;
+    }
+    g_currentGameOptions.erase(key);
+}
+
 krkr2_renderer_interface_t g_krkr2_renderer_interface = {0};
 
 void krkr2_set_renderer_interface(krkr2_renderer_interface_t* renderer) {
     if (renderer) {
         g_krkr2_renderer_interface = *renderer;
     }
+}
+
+krkr2_renderer_interface_t* krkr2_get_renderer_interface() {
+    return &g_krkr2_renderer_interface;
+}
+
+void krkr2_destroy() {
+    krkr2_shutdown();
 }
 
 bool krkr2_init(int argc, char** argv) {
@@ -197,6 +272,10 @@ void krkr2_shutdown() {
         Application->Terminate();
         delete Application;
         Application = nullptr;
+    }
+    {
+        std::lock_guard<std::mutex> lock(g_optionMutex);
+        g_currentGameOptions.clear();
     }
     g_startupDone = true; // unblock any waiting tick
 }
@@ -280,10 +359,58 @@ IndividualConfigManager *IndividualConfigManager::GetInstance() {
     static IndividualConfigManager instance;
     return &instance;
 }
-template <> bool IndividualConfigManager::GetValue<bool>(const std::string &name, const bool &defVal) { return defVal; }
-template <> int IndividualConfigManager::GetValue<int>(const std::string &name, const int &defVal) { return defVal; }
-template <> std::string IndividualConfigManager::GetValue<std::string>(const std::string &name, const std::string &defVal) { return defVal; }
-template <> float IndividualConfigManager::GetValue<float>(const std::string &name, const float &defVal) { return defVal; }
+template <>
+bool IndividualConfigManager::GetValue<bool>(
+    const std::string &name,
+    const bool &defVal
+) {
+    std::string value;
+    if (!krkr2_try_get_option(name, value)) {
+        return defVal;
+    }
+    return krkr2_parse_bool_value(value, defVal);
+}
+template <>
+int IndividualConfigManager::GetValue<int>(
+    const std::string &name,
+    const int &defVal
+) {
+    std::string value;
+    if (!krkr2_try_get_option(name, value)) {
+        return defVal;
+    }
+    try {
+        return std::stoi(value);
+    } catch (...) {
+        return defVal;
+    }
+}
+template <>
+std::string IndividualConfigManager::GetValue<std::string>(
+    const std::string &name,
+    const std::string &defVal
+) {
+    std::string value;
+    if (!krkr2_try_get_option(name, value)) {
+        return defVal;
+    }
+    return value;
+}
+template <>
+float IndividualConfigManager::GetValue<float>(
+    const std::string &name,
+    const float &defVal
+) {
+    std::string value;
+    if (!krkr2_try_get_option(name, value)) {
+        return defVal;
+    }
+    try {
+        return std::stof(value);
+    } catch (...) {
+        return defVal;
+    }
+}
 std::string IndividualConfigManager::GetFilePath() { return ""; }
 std::vector<std::string> IndividualConfigManager::GetCustomArgumentsForPush() { return {}; }
 bool IndividualConfigManager::CheckExistAt(const std::string &folder) { return false; }
@@ -425,3 +552,96 @@ bool TVP_stat(const tjs_char *name, tTVP_stat &s) {
     return TVP_stat(utf8_name.c_str(), s);
 }
 
+
+#include "../../../core/visual/BasicDrawDevice.h"
+#include "../../../core/visual/LayerBitmapIntf.h"
+
+// Define uninitialized ClassID for tTJSNC_BasicDrawDevice
+tjs_uint32 tTJSNC_BasicDrawDevice::ClassID = (tjs_uint32)-1;
+
+class HeadlessDrawDevice : public tTVPDrawDevice {
+    krkr2_texture_t tex_ = nullptr;
+    int tex_w_ = 0;
+    int tex_h_ = 0;
+
+public:
+    HeadlessDrawDevice() {}
+
+    ~HeadlessDrawDevice() override {
+        if (tex_ && g_krkr2_renderer_interface.destroy_texture) {
+            g_krkr2_renderer_interface.destroy_texture(tex_);
+        }
+    }
+
+    void StartBitmapCompletion(iTVPLayerManager *manager) override {
+        tjs_int w = 0, h = 0;
+        GetSrcSize(w, h);
+        if (w <= 0 || h <= 0) return;
+
+        if (!tex_ || tex_w_ != w || tex_h_ != h) {
+            if (tex_ && g_krkr2_renderer_interface.destroy_texture) {
+                g_krkr2_renderer_interface.destroy_texture(tex_);
+            }
+            if (g_krkr2_renderer_interface.create_texture) {
+                // Usually Kirikiri uses 32bpp. Pass 1 for format if needed.
+                tex_ = g_krkr2_renderer_interface.create_texture(w, h, 1);
+            }
+            tex_w_ = w;
+            tex_h_ = h;
+        }
+    }
+
+    void NotifyBitmapCompleted(iTVPLayerManager *manager, tjs_int x, tjs_int y,
+                               tTVPBaseTexture *bmp, const tTVPRect &cliprect,
+                               tTVPLayerType type, tjs_int opacity) override {
+        if (!tex_ || !g_krkr2_renderer_interface.update_texture || !bmp) return;
+        
+        // Grab the raw pixels from the primary layer buffer
+        const void* pixels = bmp->GetScanLine(0);
+        int pitch = bmp->GetPitchBytes();
+        
+        g_krkr2_renderer_interface.update_texture(tex_, pixels, pitch);
+    }
+
+    void EndBitmapCompletion(iTVPLayerManager *manager) override {
+    }
+
+    void Show() override {
+        if (g_krkr2_renderer_interface.clear) {
+            g_krkr2_renderer_interface.clear();
+        }
+        if (tex_ && g_krkr2_renderer_interface.draw_texture) {
+            g_krkr2_renderer_interface.draw_texture(tex_, 0, 0, tex_w_, tex_h_);
+        }
+        if (g_krkr2_renderer_interface.present) {
+            g_krkr2_renderer_interface.present();
+        }
+    }
+};
+
+class tTJSNI_BasicDrawDevice : public tTJSNativeInstance {
+    HeadlessDrawDevice *Device;
+public:
+    tTJSNI_BasicDrawDevice() {
+        Device = new HeadlessDrawDevice();
+    }
+    ~tTJSNI_BasicDrawDevice() override {
+        if (Device) {
+            Device->Destruct();
+            delete Device;
+        }
+    }
+    tjs_error Construct(tjs_int numparams, tTJSVariant **param, iTJSDispatch2 *tjs_obj) override {
+        tTJSVariant val(static_cast<tjs_int64>(
+            reinterpret_cast<tjs_intptr_t>(static_cast<iTVPDrawDevice*>(Device))));
+        tjs_obj->PropSet(TJS_MEMBERENSURE, TJS_W("interface"), nullptr, &val, tjs_obj);
+        return TJS_S_OK;
+    }
+    void Invalidate() override {
+        // Device->Destruct();
+    }
+};
+
+tTJSNativeInstance* tTJSNC_BasicDrawDevice::CreateNativeInstance() {
+    return new tTJSNI_BasicDrawDevice();
+}

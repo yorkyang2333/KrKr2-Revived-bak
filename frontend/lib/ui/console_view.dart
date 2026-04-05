@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+
 import '../engine_controller.dart';
+import 'theme.dart';
 
 class ConsoleView extends StatefulWidget {
   const ConsoleView({super.key});
@@ -16,38 +18,56 @@ class _ConsoleViewState extends State<ConsoleView> {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface.withOpacity(0.95),
+        color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.95),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Column(
         children: [
           _buildDragHandle(),
           Expanded(
-            child: StreamBuilder<String>(
-              stream: _engine.logStream,
-              builder: (context, snapshot) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (_scrollController.hasClients) {
-                    _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-                  }
-                });
-                return ListView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  itemCount: _engine.logs.length,
-                  itemBuilder: (context, index) {
-                    final logLine = _engine.logs[index];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 4.0),
-                      child: Text.rich(
-                        _colorizeLog(logLine),
-                        style: Theme.of(context).textTheme.bodySmall,
+            child: !_engine.isLogForwardingEnabled && _engine.logs.isEmpty
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        'Log forwarding is disabled in Runtime & Console settings.',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                    );
-                  },
-                );
-              }
-            ),
+                    ),
+                  )
+                : StreamBuilder<String>(
+                    stream: _engine.logStream,
+                    builder: (context, snapshot) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (_scrollController.hasClients) {
+                          _scrollController.jumpTo(
+                            _scrollController.position.maxScrollExtent,
+                          );
+                        }
+                      });
+                      return ListView.builder(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        itemCount: _engine.logs.length,
+                        itemBuilder: (context, index) {
+                          final logLine = _engine.logs[index];
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Text.rich(
+                              _colorizeLog(logLine),
+                              style: AppTheme.mono(context, fontSize: 12),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
           ),
         ],
       ),
@@ -61,7 +81,7 @@ class _ConsoleViewState extends State<ConsoleView> {
         width: 40,
         height: 5,
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.outline.withOpacity(0.5),
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(10),
         ),
       ),
@@ -71,12 +91,14 @@ class _ConsoleViewState extends State<ConsoleView> {
   TextSpan _colorizeLog(String log) {
     // Simple RegEx coloring for standard engine logs.
     Color baseColor = Theme.of(context).colorScheme.onSurface;
-    
+
     if (log.contains(RegExp(r'(error|exception|fail)', caseSensitive: false))) {
       baseColor = Colors.redAccent;
     } else if (log.contains(RegExp(r'(warn|warning)', caseSensitive: false))) {
       baseColor = Colors.orangeAccent;
-    } else if (log.contains(RegExp(r'(info|success|bound|start)', caseSensitive: false))) {
+    } else if (log.contains(
+      RegExp(r'(info|success|bound|start)', caseSensitive: false),
+    )) {
       baseColor = Colors.lightGreen;
     }
 
@@ -87,7 +109,10 @@ class _ConsoleViewState extends State<ConsoleView> {
         children: [
           TextSpan(
             text: '${match.group(1)} ',
-            style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.primary,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           TextSpan(
             text: match.group(2) ?? '',
@@ -96,6 +121,9 @@ class _ConsoleViewState extends State<ConsoleView> {
         ],
       );
     }
-    return TextSpan(text: log, style: TextStyle(color: baseColor));
+    return TextSpan(
+      text: log,
+      style: TextStyle(color: baseColor),
+    );
   }
 }

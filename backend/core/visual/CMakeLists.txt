@@ -14,6 +14,7 @@ set(VISUAL_SOURCE_FILES
     ${VISUAL_PATH}/VideoOvlIntf.cpp
     ${VISUAL_PATH}/LayerBitmapIntf.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../platform/legacy_cocos2d/visual/impl/LayerBitmapImpl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../platform/legacy_cocos2d/visual/impl/DrawDevice.cpp
     ${VISUAL_PATH}/FontImpl.cpp
 #     ${VISUAL_PATH}/RenderManager.cpp
     ${VISUAL_PATH}/LoadJPEG.cpp

@@ -3,6 +3,22 @@
 
 set -e
 
+read_with_default() {
+    local prompt="$1"
+    local default_value="$2"
+    local result_var="$3"
+    local value=""
+
+    if [ -t 0 ]; then
+        read -r -p "$prompt" value
+    else
+        value="$default_value"
+        echo "$prompt$value"
+    fi
+
+    printf -v "$result_var" '%s' "$value"
+}
+
 echo "=================================================="
 echo "    KrKr2-Revived: Auto-Build Pipeline            "
 echo "=================================================="
@@ -12,7 +28,7 @@ echo "1) macOS (Apple Silicon / Intel)"
 echo "2) Linux (x86_64)"
 echo "3) Auto-detect (Current System)"
 echo ""
-read -p "Enter choice [1-3, Default: 3]: " OS_CHOICE
+read_with_default "Enter choice [1-3, Default: 3]: " "3" OS_CHOICE
 
 OS_NAME=$(uname -s)
 
@@ -36,7 +52,7 @@ echo ""
 echo "Please select Build Configuration:"
 echo "1) Release"
 echo "2) Debug"
-read -p "Enter choice [1-2, Default: 1]: " CONFIG_CHOICE
+read_with_default "Enter choice [1-2, Default: 1]: " "1" CONFIG_CHOICE
 
 if [ "$CONFIG_CHOICE" == "2" ]; then
     BUILD_TYPE="Debug"

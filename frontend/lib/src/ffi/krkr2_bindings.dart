@@ -130,6 +130,54 @@ class KrKr2Bindings {
   late final _krkr2_set_game_path = _krkr2_set_game_pathPtr
       .asFunction<void Function(ffi.Pointer<ffi.Char>)>();
 
+  void krkr2_set_global_option(
+    ffi.Pointer<ffi.Char> key,
+    ffi.Pointer<ffi.Char> value,
+  ) {
+    return _krkr2_set_global_option(key, value);
+  }
+
+  late final _krkr2_set_global_optionPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(ffi.Pointer<ffi.Char>, ffi.Pointer<ffi.Char>)
+        >
+      >('krkr2_set_global_option');
+  late final _krkr2_set_global_option = _krkr2_set_global_optionPtr
+      .asFunction<
+        void Function(ffi.Pointer<ffi.Char>, ffi.Pointer<ffi.Char>)
+      >();
+
+  void krkr2_set_current_game_option(
+    ffi.Pointer<ffi.Char> key,
+    ffi.Pointer<ffi.Char> value,
+  ) {
+    return _krkr2_set_current_game_option(key, value);
+  }
+
+  late final _krkr2_set_current_game_optionPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(ffi.Pointer<ffi.Char>, ffi.Pointer<ffi.Char>)
+        >
+      >('krkr2_set_current_game_option');
+  late final _krkr2_set_current_game_option = _krkr2_set_current_game_optionPtr
+      .asFunction<
+        void Function(ffi.Pointer<ffi.Char>, ffi.Pointer<ffi.Char>)
+      >();
+
+  void krkr2_clear_current_game_option(ffi.Pointer<ffi.Char> key) {
+    return _krkr2_clear_current_game_option(key);
+  }
+
+  late final _krkr2_clear_current_game_optionPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Char>)>>(
+        'krkr2_clear_current_game_option',
+      );
+  late final _krkr2_clear_current_game_option =
+      _krkr2_clear_current_game_optionPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Char>)>();
+
   void krkr2_set_log_callback(krkr2_log_callback_t callback) {
     return _krkr2_set_log_callback(callback);
   }
