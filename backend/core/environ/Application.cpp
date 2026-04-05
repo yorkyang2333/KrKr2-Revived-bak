@@ -312,22 +312,30 @@ bool tTVPApplication::StartApplication(ttstr path) {
 
     // try starting the program!
     try {
-        //		if(TVPCheckProcessLog()) return true; // sub-process
-        // for
-        // processing object hash map log
+        ttstr msg1 = ttstr("[KRKR2] Step 1: Init start, raw path=") + path;
+        TVPAddImportantLog(msg1);
 
+        // Now the storage media manager is ready, normalize and set project dir
         TVPProjectDir = TVPNormalizeStorageName(path);
+        ttstr msg4b = ttstr("[KRKR2] Step 1b: ProjectDir=") + TVPProjectDir;
+        TVPAddImportantLog(msg4b);
+        TVPAddLog(ttstr("[INIT] ProjectDir set"));
 
+        TVPAddImportantLog(ttstr("[KRKR2] Step 2: InitScriptEngine"));
         TVPInitScriptEngine();
-        TVPInitFontNames();
 
         // banner
         TVPAddImportantLog(TVPFormatMessage(TVPProgramStartedOn, TVPGetOSName(),
                                             TVPGetPlatformName()));
 
-        // TVPInitializeBaseSystems
+        // InitializeBaseSystems sets up storage media manager, MUST come before NormalizeStorageName
+        TVPAddImportantLog(ttstr("[KRKR2] Step 4: InitializeBaseSystems"));
         TVPInitializeBaseSystems();
 
+        TVPAddImportantLog(ttstr("[KRKR2] Step 3: InitFontNames"));
+        TVPInitFontNames();
+
+        TVPAddImportantLog(ttstr("[KRKR2] Step 5: Initialize"));
         Initialize();
 
         if(TVPCheckPrintDataPath())
@@ -335,9 +343,12 @@ bool tTVPApplication::StartApplication(ttstr path) {
         if(TVPExecuteUserConfig())
             return true;
 
+        TVPAddImportantLog(ttstr("[KRKR2] Step 6: AsyncImageLoader"));
         image_load_thread_ = new tTVPAsyncImageLoader();
 
+        TVPAddImportantLog(ttstr("[KRKR2] Step 7: LoadPlugins"));
         tvpLoadPlugins(); // load plugin module *.tpm
+        TVPAddImportantLog(ttstr("[KRKR2] Step 8: SystemInit"));
         TVPSystemInit();
 
         if(TVPCheckAbout())
@@ -348,11 +359,15 @@ bool tTVPApplication::StartApplication(ttstr path) {
         CheckDigitizer();
 
         // start image load thread
+        TVPAddImportantLog(ttstr("[KRKR2] Step 9: Resume imageLoader"));
         image_load_thread_->Resume();
 
+        TVPAddImportantLog(ttstr("[KRKR2] Step 10: InitializeStartupScript"));
         TVPInitializeStartupScript();
+        TVPAddImportantLog(ttstr("[KRKR2] DONE - StartApplication succeeded"));
         _project_startup = true;
         return true;
+
     } catch(const EAbort &) {
         // nothing to do
     } catch(const Exception &exception) {
@@ -486,9 +501,11 @@ void tTVPApplication::BringToFront() {
 }
 #endif
 void tTVPApplication::ShowException(const ttstr &e) {
+    // Log the exception so it appears in the Flutter console
+    TVPAddLog(ttstr(TJS_W("[FATAL ERROR] ")) + e);
+    // NOTE: Do NOT call TVPSystemUninit() here - in headless mode it deadlocks
+    // waiting for background threads that have no signaling mechanism.
     TVPShowSimpleMessageBox(e, TVPGetErrorDialogTitle());
-    TVPSystemUninit();
-    TVPExitApplication(0);
 }
 void tTVPApplication::Run() {
     try {

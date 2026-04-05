@@ -394,12 +394,16 @@ class tTVPTJSGCCallback : public tTVPCompactEventCallbackIntf {
 static bool TVPScriptEngineInit = false;
 
 void TVPInitScriptEngine() {
-    if(TVPScriptEngineInit)
+    fprintf(stderr, "[KRKR2] TVPInitScriptEngine: enter\n"); fflush(stderr);
+    if(TVPScriptEngineInit) {
+        fprintf(stderr, "[KRKR2] TVPInitScriptEngine: already init\n"); fflush(stderr);
         return;
+    }
     TVPScriptEngineInit = true;
 
     tTJSVariant val;
 
+    fprintf(stderr, "[KRKR2] TVPInitScriptEngine: calling TVPGetCommandLine(-evalcontext)\n"); fflush(stderr);
     // Set eval expression mode
     if(TVPGetCommandLine(TJS_W("-evalcontext"), &val)) {
         ttstr str(val);
@@ -409,7 +413,7 @@ void TVPInitScriptEngine() {
         }
     }
 
-    // Set igonre-prop compat mode
+    fprintf(stderr, "[KRKR2] TVPInitScriptEngine: calling TVPGetCommandLine(-unaryaster)\n"); fflush(stderr);
     if(TVPGetCommandLine(TJS_W("-unaryaster"), &val)) {
         ttstr str(val);
         if(str == TJS_W("compat")) {
@@ -423,15 +427,7 @@ void TVPInitScriptEngine() {
         if(str == TJS_W("yes")) {
             TJSEnableDebugMode = true;
             TVPAddImportantLog((const tjs_char *)TVPWarnDebugOptionEnabled);
-            //			if(TVPGetCommandLine(TJS_W("-warnrundelobj"),
-            //&val) )
-            //			{
-            //				str = val;
-            //				if(str == TJS_W("yes"))
-            //				{
             TJSWarnOnExecutionOnDeletingObject = true;
-            //				}
-            //			}
         }
     }
 
@@ -445,8 +441,11 @@ void TVPInitScriptEngine() {
     }
 #endif
 
+    fprintf(stderr, "[KRKR2] TVPInitScriptEngine: calling new tTJS()\n"); fflush(stderr);
     // create script engine object
     TVPScriptEngine = new tTJS();
+
+    fprintf(stderr, "[KRKR2] TVPInitScriptEngine: tTJS created\n"); fflush(stderr);
 
     // add kirikiriz
     //	TVPScriptEngine->SetPPValue( TJS_W("kirikiriz"), 1 );
@@ -454,9 +453,11 @@ void TVPInitScriptEngine() {
     // set TJSGetRandomBits128
     TJSGetRandomBits128 = TVPGetRandomBits128;
 
+    fprintf(stderr, "[KRKR2] TVPInitScriptEngine: ExecScript(TVPInitTJSScript)\n"); fflush(stderr);
     // script system initialization
     TVPScriptEngine->ExecScript(ttstr(TVPInitTJSScript));
 
+    fprintf(stderr, "[KRKR2] TVPInitScriptEngine: setting callbacks\n"); fflush(stderr);
     // set console output gateway handler
     TVPScriptEngine->SetConsoleOutput(TVPGetTJS2ConsoleOutputGateway());
 
@@ -468,6 +469,7 @@ void TVPInitScriptEngine() {
     TJSCreateBinaryStreamForRead = TVPCreateBinaryStreamForRead;
     TJSCreateBinaryStreamForWrite = TVPCreateBinaryStreamForWrite;
 
+    fprintf(stderr, "[KRKR2] TVPInitScriptEngine: registering globals\n"); fflush(stderr);
     // register some TVP classes/objects/functions/propeties
     iTJSDispatch2 *dsp;
     iTJSDispatch2 *global = TVPScriptEngine->GetGlobalNoAddRef();

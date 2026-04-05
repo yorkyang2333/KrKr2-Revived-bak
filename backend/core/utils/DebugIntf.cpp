@@ -736,10 +736,8 @@ TJS_END_NATIVE_STATIC_PROP_DECL(clearLogFileOnError)
 TJS_END_NATIVE_MEMBERS
 
 // put version information to DMS
-#if 0
     TVPAddImportantLog(TVPGetVersionInformation());
     TVPAddImportantLog(ttstr(TVPVersionInformation2));
-#endif
 } // end of tTJSNC_Debug::tTJSNC_Debug
 //---------------------------------------------------------------------------
 

@@ -36,9 +36,7 @@ class _ConsoleViewState extends State<ConsoleView> {
                       padding: const EdgeInsets.only(bottom: 4.0),
                       child: Text.rich(
                         _colorizeLog(logLine),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              fontFamily: 'monospace',
-                            ),
+                        style: Theme.of(context).textTheme.bodySmall,
                       ),
                     );
                   },

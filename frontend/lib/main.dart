@@ -58,6 +58,9 @@ class _KrKr2GameScreenState extends State<KrKr2GameScreen> {
   }
 
   Future<void> _initEngine() async {
+    // Auto-open console so user can see what's happening
+    WidgetsBinding.instance.addPostFrameCallback((_) => _showConsole());
+
     try {
       print('[Flutter] Starting _initEngine...');
       // Wait for the FFI and Texture bindings to set up
@@ -72,10 +75,14 @@ class _KrKr2GameScreenState extends State<KrKr2GameScreen> {
       _engine.startTicker();
       
       setState(() {
-        _isEngineReady = true;
+        _isEngineReady = ready;
       });
     } catch (e, st) {
       print('[Flutter] initEngine EXCEPTION: $e\n$st');
+      // Still mark as ready so FAB/console is accessible for debugging
+      setState(() {
+        _isEngineReady = true;
+      });
     }
   }
 
@@ -86,6 +93,7 @@ class _KrKr2GameScreenState extends State<KrKr2GameScreen> {
   }
 
   void _showConsole() {
+    if (!mounted) return;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -115,7 +123,9 @@ class _KrKr2GameScreenState extends State<KrKr2GameScreen> {
                       child: Texture(textureId: _engine.textureId!),
                     ),
                   )
-                : const CircularProgressIndicator(),
+                : _isEngineReady
+                    ? Container(color: Colors.black) // Engine running, no texture yet
+                    : const CircularProgressIndicator(),
           ),
           // Transparent overlay safety button to go back or open console
           Positioned(

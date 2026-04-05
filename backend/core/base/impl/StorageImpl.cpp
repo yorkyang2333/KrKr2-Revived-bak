@@ -551,8 +551,14 @@ bool TVPRemoveFolder(const ttstr &name) {
 // TVPGetAppPath
 //---------------------------------------------------------------------------
 ttstr TVPGetAppPath() {
-    static ttstr apppath(TVPExtractStoragePath(TVPProjectDir));
-    return apppath;
+    extern ttstr TVPNativeProjectDir;
+    if (!TVPProjectDir.IsEmpty()) {
+        return TVPExtractStoragePath(TVPProjectDir);
+    }
+    if (!TVPNativeProjectDir.IsEmpty()) {
+        return TVPExtractStoragePath(TVPNormalizeStorageName(TVPNativeProjectDir));
+    }
+    return TJS_W("");
 }
 //---------------------------------------------------------------------------
 

@@ -198,6 +198,8 @@ KrKr2-Revived/
 | 修复 `build_all.sh` 路径 Bug（`cd frontend` 后 `find/mkdir` 路径失效） | ✅ |
 | 修复 Xcode 未链接后端静态库与缺失符号（引入 `ForceFeedback` 框架、补全平台空实现、添加 brotli） | ✅ |
 | 成功链接并执行 macOS Headless 构建，无依赖挂起 | ✅ |
+| 修复 macOS 下 FFI 崩溃、日志不显示及因路径挂载顺序导致的黑屏死锁与启动抛错 | ✅ |
+| **修复引擎启动初期黑屏崩溃异常（处理 `TVPGetAppPath()` 生命周期导致的 `[RAW: '']` 空路径访问抛出致命错误）** | ✅ |
 
 ---
 

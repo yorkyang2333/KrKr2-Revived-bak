@@ -269,7 +269,19 @@ struct TVPMemoryInfo;
 
 bool TVPAutoSaveBookMark = false;
 int TVPSegmentCacheLimit = 0;
-bool TVPProcessContinuousHandlerEventFlag = true;
+
+extern tjs_int TVPVersionMajor;
+extern tjs_int TVPVersionMinor;
+extern tjs_int TVPVersionRelease;
+extern tjs_int TVPVersionBuild;
+
+void TVPGetVersion(void) {
+    TVPVersionMajor = 1;
+    TVPVersionMinor = 4;
+    TVPVersionRelease = 1;
+    TVPVersionBuild = 20;
+}
+
 ttstr TVPGetOSName() { return ttstr(TJS_W("macOS")); }
 void TVPLoadPVRv3(TJS::tTJSBinaryStream*, const std::function<void(const TJS::tTJSString&, const TJS::tTJSVariant&)>&) {}
 bool TVPSelectFile(TJS::iTJSDispatch2*) { return false; }

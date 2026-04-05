@@ -589,7 +589,9 @@ static void TVPDumpOptions() {
 
 //---------------------------------------------------------------------------
 bool TVPGetCommandLine(const tjs_char *name, tTJSVariant *value) {
+    fprintf(stderr, "[KRKR2] TVPGetCommandLine: entering\n"); fflush(stderr);
     TVPInitProgramArgumentsAndDataPath(false);
+    fprintf(stderr, "[KRKR2] TVPGetCommandLine: TVPInitProgramArgumentsAndDataPath done\n"); fflush(stderr);
 
     tjs_int namelen = (tjs_int)TJS_strlen(name);
     std::vector<ttstr>::const_iterator i;
@@ -600,15 +602,18 @@ bool TVPGetCommandLine(const tjs_char *name, tTJSVariant *value) {
                 const tjs_char *p = i->c_str() + namelen + 1;
                 if(value)
                     *value = p;
+                fprintf(stderr, "[KRKR2] TVPGetCommandLine: returning true (value specified)\n"); fflush(stderr);
                 return true;
             } else if(i->c_str()[namelen] == 0) {
                 // value is not specified
                 if(value)
                     *value = TJS_W("yes");
+                fprintf(stderr, "[KRKR2] TVPGetCommandLine: returning true (no value)\n"); fflush(stderr);
                 return true;
             }
         }
     }
+    fprintf(stderr, "[KRKR2] TVPGetCommandLine: returning false\n"); fflush(stderr);
     return false;
 }
 

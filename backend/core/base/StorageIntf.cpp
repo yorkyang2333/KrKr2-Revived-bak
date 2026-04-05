@@ -191,6 +191,7 @@ tTVPStorageMediaManager::tTVPStorageMediaManager() {
     iTVPStorageMedia *filemedia = TVPCreateFileMedia();
     Register(filemedia);
     filemedia->Release();
+    TVPCurrentMedia = TJS_W("file");
 }
 
 //---------------------------------------------------------------------------
@@ -198,7 +199,8 @@ tTVPStorageMediaManager::~tTVPStorageMediaManager() {}
 
 //---------------------------------------------------------------------------
 void tTVPStorageMediaManager::ThrowUnsupportedMediaType(const ttstr &name) {
-    TVPThrowExceptionMessage(TVPUnsupportedMediaName, ExtractMediaName(name));
+    ttstr exc_msg = ExtractMediaName(name) + TJS_W(" [RAW: '") + name + TJS_W("']");
+    TVPThrowExceptionMessage(TVPUnsupportedMediaName, exc_msg);
 }
 
 //---------------------------------------------------------------------------
@@ -345,6 +347,10 @@ ttstr tTVPStorageMediaManager::NormalizeStorageName(const ttstr &name,
     // supply omitted and normalize
     if(media.IsEmpty()) {
         media = TVPCurrentMedia;
+        if(media.IsEmpty()) {
+            media = TJS_W("file");
+            TVPCurrentMedia = media; // Ensure future calls also default to 'file' if unaffected
+        }
     } else {
         // normalize media name ( make them all small )
         //        tjs_char *p = media.Independ();

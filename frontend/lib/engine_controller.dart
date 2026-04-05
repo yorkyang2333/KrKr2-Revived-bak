@@ -40,26 +40,37 @@ class EngineController {
     
     // Set log callback
     final logCallback = ffi.NativeCallable<
-        ffi.Void Function(ffi.Int level, ffi.Pointer<ffi.Char> message)>.listener(_onLogReceived);
+        ffi.Void Function(ffi.Int level, ffi.Pointer<ffi.Char> message)>.isolateLocal(_onLogReceived);
     _bindings.krkr2_set_log_callback(logCallback.nativeFunction);
     
     // Register Texture
     if (Platform.isMacOS) {
       // 1. Invoke Swift MethodChannel to allocate KrKr2Texture
-      final int id = await _channel.invokeMethod('initTexture');
-      textureId = id;
+      try {
+        final int id = await _channel.invokeMethod('initTexture');
+        textureId = id;
+        print('[Engine] Texture registered with id=$id');
+      } catch (e) {
+        print('[Engine] WARNING: initTexture failed: $e');
+      }
       
-      // 2. Map Swift @cdecl functions to C function pointers
-      final rendererInterface = calloc<krkr2_renderer_interface_t>();
-      rendererInterface.ref.create_texture = _dylib.lookup<ffi.NativeFunction<krkr2_texture_t Function(ffi.Int, ffi.Int, ffi.Int)>>('swift_krkr2_create_texture');
-      rendererInterface.ref.update_texture = _dylib.lookup<ffi.NativeFunction<ffi.Void Function(krkr2_texture_t, ffi.Pointer<ffi.Void>, ffi.Int)>>('swift_krkr2_update_texture');
-      rendererInterface.ref.destroy_texture = _dylib.lookup<ffi.NativeFunction<ffi.Void Function(krkr2_texture_t)>>('swift_krkr2_destroy_texture');
-      rendererInterface.ref.clear = _dylib.lookup<ffi.NativeFunction<ffi.Void Function()>>('swift_krkr2_clear');
-      rendererInterface.ref.draw_texture = _dylib.lookup<ffi.NativeFunction<ffi.Void Function(krkr2_texture_t, ffi.Int, ffi.Int, ffi.Int, ffi.Int)>>('swift_krkr2_draw_texture');
-      rendererInterface.ref.present = _dylib.lookup<ffi.NativeFunction<ffi.Void Function()>>('swift_krkr2_present');
-      
-      // 3. Inject them into Engine C-API
-      _bindings.krkr2_set_renderer_interface(rendererInterface);
+      // 2. Map Swift @cdecl functions to C function pointers (gracefully degrade if not found)
+      try {
+        final rendererInterface = calloc<krkr2_renderer_interface_t>();
+        rendererInterface.ref.create_texture = _dylib.lookup<ffi.NativeFunction<krkr2_texture_t Function(ffi.Int, ffi.Int, ffi.Int)>>('swift_krkr2_create_texture');
+        rendererInterface.ref.update_texture = _dylib.lookup<ffi.NativeFunction<ffi.Void Function(krkr2_texture_t, ffi.Pointer<ffi.Void>, ffi.Int)>>('swift_krkr2_update_texture');
+        rendererInterface.ref.destroy_texture = _dylib.lookup<ffi.NativeFunction<ffi.Void Function(krkr2_texture_t)>>('swift_krkr2_destroy_texture');
+        rendererInterface.ref.clear = _dylib.lookup<ffi.NativeFunction<ffi.Void Function()>>('swift_krkr2_clear');
+        rendererInterface.ref.draw_texture = _dylib.lookup<ffi.NativeFunction<ffi.Void Function(krkr2_texture_t, ffi.Int, ffi.Int, ffi.Int, ffi.Int)>>('swift_krkr2_draw_texture');
+        rendererInterface.ref.present = _dylib.lookup<ffi.NativeFunction<ffi.Void Function()>>('swift_krkr2_present');
+        
+        // 3. Inject them into Engine C-API
+        _bindings.krkr2_set_renderer_interface(rendererInterface);
+        print('[Engine] Renderer interface set up successfully');
+      } catch (e) {
+        print('[Engine] WARNING: Renderer interface setup failed (headless mode): $e');
+        // Engine will still run and produce logs even without a renderer
+      }
     }
   }
 
