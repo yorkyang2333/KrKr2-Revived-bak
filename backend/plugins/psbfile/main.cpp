@@ -12,6 +12,7 @@
 #include "PSBFile.h"
 #include "PSBHeader.h"
 #include "PSBMedia.h"
+#include "TJSCompat.h"
 #include "PSBValue.h"
 
 #define NCB_MODULE_NAME TJS_W("psbfile.dll")
@@ -38,17 +39,7 @@ void deInitPsbFile() {
 static tjs_error getRoot(tTJSVariant *r, tjs_int n, tTJSVariant **p,
                          iTJSDispatch2 *obj) {
     auto *self = ncbInstanceAdaptor<PSB::PSBFile>::GetNativeInstance(obj);
-    iTJSDispatch2 *dic = TJSCreateCustomObject();
-    auto objs = self->getObjects();
-    if(objs != nullptr) {
-        for(const auto &[k, v] : *objs) {
-            tTJSVariant tmp = v->toTJSVal();
-            dic->PropSet(TJS_MEMBERENSURE, ttstr{ k }.c_str(), nullptr, &tmp,
-                         dic);
-        }
-    }
-    *r = tTJSVariant{ dic, dic };
-    dic->Release();
+    *r = PSB::BuildCompatRootVariant(*self);
     return TJS_S_OK;
 }
 
@@ -83,8 +74,13 @@ static tjs_error load(tTJSVariant *r, tjs_int count, tTJSVariant **p,
         return TJS_E_INVALIDPARAM;
     }
 
-    if(r != nullptr)
-        *r = tTJSVariant(loadSuccess);
+    if(r != nullptr) {
+        if(loadSuccess) {
+            *r = PSB::BuildCompatRootVariant(*self);
+        } else {
+            *r = tTJSVariant(false);
+        }
+    }
     return TJS_S_OK;
 }
 

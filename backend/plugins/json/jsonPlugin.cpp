@@ -38,11 +38,18 @@ struct Scripts {
 
         // 这里只是示范：读文件并返回文本
         ttstr content;
+        iTJSTextReadStream *stream = nullptr;
         try {
-            content = TVPLoadText(fileName, TJS_W("z1"));
+            stream = TVPCreateTextStreamForRead(fileName, TJS_W("z1"));
+            if(!stream)
+                return TJS_S_FALSE;
+            stream->Read(content, 0);
         } catch(...) {
+            if(stream)
+                stream->Destruct();
             return TJS_S_FALSE;
         }
+        stream->Destruct();
         if(!content.IsEmpty()) {
             if(result)
                 *result = content; // 实际应解析 JSON
@@ -66,12 +73,23 @@ struct Scripts {
 
         // 模拟序列化：直接把对象转成字符串（实际应使用 JSON 库）
         ttstr jsonStr = obj.AsStringNoAddRef();
+        iTJSTextWriteStream *stream = nullptr;
         try {
-            TVPSaveText(fileName, jsonStr, TJS_W("z1"));
+            stream = TVPCreateTextStreamForWrite(fileName, TJS_W("z1"));
+            if(!stream) {
+                if(result)
+                    *result = false;
+                return TJS_S_FALSE;
+            }
+            stream->Write(jsonStr);
         } catch(...) {
+            if(stream)
+                stream->Destruct();
             if(result)
                 *result = false;
+            return TJS_S_FALSE;
         }
+        stream->Destruct();
         if(result)
             *result = true;
         return TJS_S_OK;

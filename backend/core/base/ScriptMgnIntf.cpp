@@ -721,69 +721,75 @@ void TVPExecuteStorage(const ttstr &name, iTJSDispatch2 *context,
         ttstr place(TVPSearchPlacedPath(name));
         ttstr shortname(TVPExtractStorageName(place));
         std::unique_ptr<tTJSBinaryStream> stream{ TVPCreateBinaryStreamForRead(
-            place, modestr) };
+            name, modestr) };
         if(stream) {
-            bool isbytecode = TVPScriptEngine->LoadByteCode(
-                stream.get(), result, context, shortname.c_str());
+            try {
+                bool isbytecode = TVPScriptEngine->LoadByteCode(
+                    stream.get(), result, context, shortname.c_str());
 
-            if(isbytecode) {
-                // save extract binary file for debug!
-                //                auto loader =
-                //                std::make_unique<tTJSByteCodeLoader>(); auto
-                //                *buff =
-                //                    new tjs_uint8[static_cast<unsigned
-                //                    int>(stream->GetSize())];
-                //                stream->Read(buff,
-                //                static_cast<tjs_uint>(stream->GetSize()));
-                //
-                //                std::unique_ptr<tTJSScriptBlock,
-                //                                std::function<void(tTJSScriptBlock
-                //                                *)>>
-                //                    blk{ loader->ReadByteCode(TVPScriptEngine,
-                //                    name.c_str(),
-                //                                              buff,
-                //                                              stream->GetSize()),
-                //                         [](auto *ptr) { ptr->Release(); } };
-                //                delete[] buff;
-                //                if(!blk)
-                //                    return;
-                //                auto tmpPlace = place.AsStdString();
-                //                tmpPlace.replace(tmpPlace.find(".xp3>"),
-                //                std::strlen(".xp3>"),
-                //                                 "_xp3/");
-                //                std::filesystem::path absoluteScriptPath{
-                //                tmpPlace.substr(
-                //                    std::strlen("file://.")) };
-                //                std::filesystem::create_directories(
-                //                    absoluteScriptPath.parent_path());
-                //                auto memoryStream =
-                //                std::make_unique<tTVPMemoryStream>();
-                //                blk->Dump(memoryStream.get());
-                //
-                //                std::vector<char16_t>
-                //                buffer(memoryStream->GetSize() /
-                //                                             sizeof(char16_t));
-                //
-                //                memoryStream->Seek(0, TJS_BS_SEEK_SET);
-                //                memoryStream->Read(buffer.data(),
-                //                memoryStream->GetSize()); FILE *f =
-                //                fopen(absoluteScriptPath.c_str(), "wb");
-                //                // 写入 UTF-16 LE BOM 小端
-                //                char16_t bom = 0xFEFF;
-                //                fwrite(&bom, sizeof(char16_t), 1, f);
-                //
-                //                fwrite(buffer.data(), sizeof(char16_t),
-                //                buffer.size(), f); fclose(f);
-                // end
-                return;
+                if(isbytecode) {
+                    // save extract binary file for debug!
+                    //                auto loader =
+                    //                std::make_unique<tTJSByteCodeLoader>(); auto
+                    //                *buff =
+                    //                    new tjs_uint8[static_cast<unsigned
+                    //                    int>(stream->GetSize())];
+                    //                stream->Read(buff,
+                    //                static_cast<tjs_uint>(stream->GetSize()));
+                    //
+                    //                std::unique_ptr<tTJSScriptBlock,
+                    //                                std::function<void(tTJSScriptBlock
+                    //                                *)>>
+                    //                    blk{ loader->ReadByteCode(TVPScriptEngine,
+                    //                    name.c_str(),
+                    //                                              buff,
+                    //                                              stream->GetSize()),
+                    //                         [](auto *ptr) { ptr->Release(); } };
+                    //                delete[] buff;
+                    //                if(!blk)
+                    //                    return;
+                    //                auto tmpPlace = place.AsStdString();
+                    //                tmpPlace.replace(tmpPlace.find(".xp3>"),
+                    //                std::strlen(".xp3>"),
+                    //                                 "_xp3/");
+                    //                std::filesystem::path absoluteScriptPath{
+                    //                tmpPlace.substr(
+                    //                    std::strlen("file://.")) };
+                    //                std::filesystem::create_directories(
+                    //                    absoluteScriptPath.parent_path());
+                    //                auto memoryStream =
+                    //                std::make_unique<tTVPMemoryStream>();
+                    //                blk->Dump(memoryStream.get());
+                    //
+                    //                std::vector<char16_t>
+                    //                buffer(memoryStream->GetSize() /
+                    //                                             sizeof(char16_t));
+                    //
+                    //                memoryStream->Seek(0, TJS_BS_SEEK_SET);
+                    //                memoryStream->Read(buffer.data(),
+                    //                memoryStream->GetSize()); FILE *f =
+                    //                fopen(absoluteScriptPath.c_str(), "wb");
+                    //                // 写入 UTF-16 LE BOM 小端
+                    //                char16_t bom = 0xFEFF;
+                    //                fwrite(&bom, sizeof(char16_t), 1, f);
+                    //
+                    //                fwrite(buffer.data(), sizeof(char16_t),
+                    //                buffer.size(), f); fclose(f);
+                    // end
+                    return;
+                }
+            } catch(...) {
+                // Some plain text scripts packaged inside archives can throw
+                // during bytecode probing in the headless runtime. Retry
+                // through the normal text path.
             }
         }
     }
 
     ttstr place(TVPSearchPlacedPath(name));
     ttstr shortname(TVPExtractStorageName(place));
-    std::unique_ptr<iTJSTextReadStream> stream{ TVPCreateTextStreamForRead(
-        place, modestr) };
+    std::unique_ptr<iTJSTextReadStream> stream;
+    stream.reset(TVPCreateTextStreamForRead(name, modestr));
     ttstr buffer;
     stream->Read(buffer, 0);
 
@@ -802,7 +808,6 @@ void TVPExecuteStorage(const ttstr &name, iTJSDispatch2 *context,
     // end
 
     if(TVPScriptEngine) {
-
         if(!isexpression)
             TVPScriptEngine->ExecScript(buffer, result, context, &shortname);
         else
@@ -947,31 +952,56 @@ void TVPExecuteStartupScript() {
 
     // execute "startup.tjs"
     try {
-
         ttstr place(TVPSearchPlacedPath(TVPStartupScriptName));
         spdlog::info("Loading startup script: {}", place.AsStdString());
         TVPStartupSuccess = false;
-        try {
-            iTJSTextReadStream *stream = TVPCreateTextStreamForRead(place, "");
-            stream->Destruct();
-            TVPExecuteStorage(TVPStartupScriptName);
-            TVPStartupSuccess = true;
-        } catch(...) {
-            if(!TVPIsExistentStorage(TJS_W("system/Initialize.tjs"))) {
-                throw;
+
+        const bool canFallbackToInitialize =
+            TVPIsExistentStorage(TJS_W("system/Initialize.tjs"));
+
+        if(!place.IsEmpty()) {
+            try {
+                TVPExecuteStorage(TVPStartupScriptName);
+                TVPStartupSuccess = true;
+            } catch(const TJS::eTJSScriptError &) {
+                if(!canFallbackToInitialize)
+                    throw;
+            } catch(const TJS::eTJSSilent &) {
+                if(!canFallbackToInitialize)
+                    throw;
+            } catch(const TJS::eTJS &) {
+                if(!canFallbackToInitialize)
+                    throw;
+            } catch(const std::exception &) {
+                if(!canFallbackToInitialize)
+                    throw;
+            } catch(const tjs_char *) {
+                if(!canFallbackToInitialize)
+                    throw;
+            } catch(const char *) {
+                if(!canFallbackToInitialize)
+                    throw;
+            } catch(...) {
+                if(!canFallbackToInitialize) {
+                    TJS_eTJSError(
+                        TJS_W("Unknown startup script error before the first frame."));
+                }
             }
         }
+
         if(!TVPStartupSuccess) {
-            // try direct execute initialize.tjs to compatible for
-            // some patch
+            // Keep the original kirikiri-compatible fallback behavior:
+            // some games ship a bootstrap startup.tjs that intentionally
+            // chains into system/Initialize.tjs and may fail on the first hop.
             TVPExecuteStorage(TJS_W("system/Initialize.tjs"));
             TVPStartupSuccess = true;
         }
         spdlog::info("Startup script ended.");
         try {
             ttstr patch = TVPGetAppPath() + "AfterStartup.tjs";
-            if(TVPIsExistentStorageNoSearch(patch))
+            if(TVPIsExistentStorageNoSearch(patch)) {
                 TVPExecuteStorage(patch);
+            }
         } catch(...) {
         }
     }
@@ -1187,6 +1217,7 @@ void TVPShowScriptException(eTJS &e) {
     if(!TVPSystemUninitCalled) {
         ttstr errstr =
             (ttstr(TVPScriptExceptionRaised) + TJS_W("\n") + e.GetMessage());
+        TVPNotifyEngineError(errstr);
         TVPAddLog(ttstr(TVPScriptExceptionRaised) + TJS_W("\n") +
                   e.GetMessage());
         TVPShowSimpleMessageBox(errstr, TVPGetErrorDialogTitle());
@@ -1204,10 +1235,15 @@ void TVPShowScriptException(eTJSScriptError &e) {
     if(!TVPSystemUninitCalled) {
         ttstr errstr =
             (ttstr(TVPScriptExceptionRaised) + TJS_W("\n") + e.GetMessage());
+        ttstr diagnostic = errstr;
         TVPAddLog(ttstr(TVPScriptExceptionRaised) + TJS_W("\n") +
                   e.GetMessage());
-        if(e.GetTrace().GetLen() != 0)
+        if(e.GetTrace().GetLen() != 0) {
             TVPAddLog(ttstr(TJS_W("trace : ")) + e.GetTrace());
+            diagnostic += TJS_W("\ntrace : ");
+            diagnostic += e.GetTrace();
+        }
+        TVPNotifyEngineError(diagnostic);
         TVPShowSimpleMessageBox(errstr, TVPGetErrorDialogTitle());
         //	Application->MessageDlg( errstr.AsStdString(),
         // Application->GetTitle(), mtStop, mbOK );

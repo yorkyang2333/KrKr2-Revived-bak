@@ -9,6 +9,7 @@ if (BUILD_AS_LIBRARY)
     if(APPLE)
         target_sources(${PROJECT_NAME} PRIVATE
             environ_headless/MacDialogs.mm
+            environ_headless/MacPlatformCompat.cpp
         )
     endif()
 else()

@@ -175,7 +175,10 @@ public:
     }
 
     tjs_uint64 GetSize() override {
-        return RustStream->seek(0, TJS_BS_SEEK_END);
+        const tjs_uint64 saved = CurPos;
+        const tjs_uint64 size = RustStream->seek(0, TJS_BS_SEEK_END);
+        RustStream->seek(saved, TJS_BS_SEEK_SET);
+        return size;
     }
 };
 

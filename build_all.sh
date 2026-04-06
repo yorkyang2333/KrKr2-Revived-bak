@@ -23,6 +23,29 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+find_latest_file() {
+    local search_root="$1"
+    local pattern="$2"
+
+    find "$search_root" -type f -name "$pattern" -exec stat -f '%m %N' {} + 2>/dev/null \
+        | sort -nr \
+        | head -n 1 \
+        | cut -d' ' -f2-
+}
+
+directory_is_empty() {
+    local dir="$1"
+    [ -d "$dir" ] && [ -z "$(find "$dir" -mindepth 1 -maxdepth 1 2>/dev/null | head -n 1)" ]
+}
+
+is_vcpkg_layout() {
+    local dir="$1"
+    [ -f "$dir/bootstrap-vcpkg.sh" ] || \
+    [ -f "$dir/bootstrap-vcpkg.bat" ] || \
+    [ -f "$dir/scripts/buildsystems/vcpkg.cmake" ] || \
+    [ -x "$dir/vcpkg" ]
+}
+
 ensure_command() {
     local cmd="$1"
     local hint="${2:-}"
@@ -68,16 +91,20 @@ prepare_vcpkg() {
     local vcpkg_root="$repo_root/vcpkg_root"
     local vcpkg_git_url="https://github.com/microsoft/vcpkg.git"
 
-    if [ ! -d "$vcpkg_root/.git" ]; then
-        if [ -e "$vcpkg_root" ]; then
-            echo "❌ $vcpkg_root already exists, but it is not a valid vcpkg git checkout."
-            exit 1
-        fi
-
+    if [ ! -e "$vcpkg_root" ]; then
         echo "📥 Cloning vcpkg into $vcpkg_root ..."
         git clone "$vcpkg_git_url" "$vcpkg_root"
+    elif directory_is_empty "$vcpkg_root"; then
+        echo "📁 Found empty directory at $vcpkg_root, cloning vcpkg into it..."
+        git clone "$vcpkg_git_url" "$vcpkg_root"
+    elif [ -d "$vcpkg_root/.git" ]; then
+        echo "📦 Reusing existing vcpkg git checkout: $vcpkg_root"
+    elif is_vcpkg_layout "$vcpkg_root"; then
+        echo "📦 Reusing existing vcpkg directory: $vcpkg_root"
     else
-        echo "📦 Reusing existing vcpkg checkout: $vcpkg_root"
+        echo "❌ $vcpkg_root exists, but it does not look like a usable vcpkg directory."
+        echo "   Please remove it or replace it with a valid vcpkg checkout, then rerun ./build_all.sh"
+        exit 1
     fi
 
     bootstrap_vcpkg "$vcpkg_root"
@@ -149,15 +176,46 @@ echo "🚀 [Step 1/2]: Building C++ / Rust Backend Engine ($PRESET_BUILD)..."
 echo "--------------------------------------------------"
 cmake --preset="$PRESET_CONFIG" -DBUILD_AS_LIBRARY=ON
 
-echo "✅ CMake Configured! Compiling krkr2platform..."
-cmake --build --preset="$PRESET_BUILD" --target krkr2platform -j$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)
+echo "✅ CMake Configured! Compiling krkr2platform and repo-backed plugins..."
+cmake --build --preset="$PRESET_BUILD" --target krkr2platform krkr2plugins -j$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)
+
+if [ "$BUILD_PLATFORM" == "macos" ]; then
+    BUILD_TYPE_LOWER=$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')
+    BACKEND_PLATFORM_LIB="$ROOT_DIR/out/macos/$BUILD_TYPE_LOWER/backend/platform/libkrkr2platform.a"
+    BACKEND_PLUGIN_DIR="$ROOT_DIR/out/macos/$BUILD_TYPE_LOWER/backend/plugins"
+    MACOS_PLUGIN_LIBS=(
+        libkrkr2plugin.a
+        libjson.a
+        libfstat.a
+        libpsbfile.a
+        libpsdparse.a
+        libpsdfile.a
+        libmotionplayer.a
+        libsteam.a
+        libDrawDeviceForSteam.a
+    )
+
+    echo "🔎 Verifying macOS backend artifacts..."
+    if [ ! -f "$BACKEND_PLATFORM_LIB" ]; then
+        echo "❌ Missing backend platform library: $BACKEND_PLATFORM_LIB"
+        exit 1
+    fi
+
+    for plugin_lib in "${MACOS_PLUGIN_LIBS[@]}"; do
+        if [ ! -f "$BACKEND_PLUGIN_DIR/$plugin_lib" ]; then
+            echo "❌ Missing backend plugin library: $BACKEND_PLUGIN_DIR/$plugin_lib"
+            exit 1
+        fi
+    done
+fi
+
 echo "✅ Backend Engine build complete!"
 echo ""
 
 echo "📱 [Step 2/2]: Building Flutter Frontend UI ($BUILD_PLATFORM)..."
 echo "--------------------------------------------------"
 
-echo "📦 Packing engine backend static libraries..."
+echo "📦 Preparing macOS frontend libraries..."
 mkdir -p "$ROOT_DIR/frontend/macos/krkr2_libs"
 rm -f "$ROOT_DIR/frontend/macos/krkr2_libs"/*.a
 
@@ -167,33 +225,29 @@ if [ "$OS_NAME" == "Darwin" ] && [ "$(uname -m)" == "x86_64" ]; then
 fi
 
 if [ "$BUILD_PLATFORM" == "macos" ]; then
-    BUILD_TYPE_LOWER=$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')
-    BACKEND_LIBS=$(find "$ROOT_DIR/out/macos/$BUILD_TYPE_LOWER/backend" -name "*.a" 2>/dev/null)
-    VCPKG_LIBS=$(find "$ROOT_DIR/out/macos/$BUILD_TYPE_LOWER/vcpkg_installed/$VCPKG_ARCH/lib" -name "*.a" 2>/dev/null)
-    # Rust crate outputs (Corrosion builds them into backend/rust/target/)
-    # Use release build if available, fall back to debug (Corrosion defaults to debug)
-    RUST_TARGET_DIR="$ROOT_DIR/backend/rust/target"
-    if [ "$BUILD_TYPE_LOWER" == "release" ] && [ -d "$RUST_TARGET_DIR/aarch64-apple-darwin/release" ]; then
-        RUST_PROFILE_DIR="$RUST_TARGET_DIR/aarch64-apple-darwin/release"
-    elif [ "$BUILD_TYPE_LOWER" == "release" ] && [ -d "$RUST_TARGET_DIR/release" ]; then
-        RUST_PROFILE_DIR="$RUST_TARGET_DIR/release"
-    else
-        RUST_PROFILE_DIR="$RUST_TARGET_DIR/debug"
-    fi
-    # Top-level crate .a files (exclude noisy deps/ duplicates)
-    RUST_LIBS=$(find "$RUST_PROFILE_DIR" -maxdepth 1 -name "libkrkr2*.a" 2>/dev/null)
-    # cxx bridge runtime (libcxxbridge1.a, libkrkr2-*-cxxgen.a, etc.)
-    CXX_BRIDGE_LIBS=$(find "$RUST_TARGET_DIR/debug/build" -name "libcxxbridge1.a" -o -name "libkrkr2-*-cxxgen.a" -o -name "libkrkr2_*_cxx.a" 2>/dev/null | head -20)
-    if [ -z "$BACKEND_LIBS" ]; then
-        echo "❌ No backend .a files found in out/macos/$BUILD_TYPE_LOWER/backend. Did the C++ build succeed?"
-        exit 1
-    fi
-    echo "  → Backend C++ libs: $(echo $BACKEND_LIBS | wc -w | tr -d ' ') files"
-    echo "  → Rust crate libs: $(echo $RUST_LIBS | wc -w | tr -d ' ') files from $RUST_PROFILE_DIR"
-    echo "  → cxx bridge libs: $(echo $CXX_BRIDGE_LIBS | wc -w | tr -d ' ') files"
-    libtool -static -o "$ROOT_DIR/frontend/macos/krkr2_libs/libkrkr2_backend.a" \
-        $BACKEND_LIBS $RUST_LIBS $CXX_BRIDGE_LIBS $VCPKG_LIBS
-    echo "✅ libkrkr2_backend.a packed ($(du -sh "$ROOT_DIR/frontend/macos/krkr2_libs/libkrkr2_backend.a" | cut -f1))"
+    RUST_PROFILE_DIR="$ROOT_DIR/backend/rust/target/debug"
+    RUST_BUILD_DIR="$RUST_PROFILE_DIR/build"
+    echo "📚 Syncing Rust static libraries for Xcode..."
+    for rust_lib in \
+        libkrkr2_image.a \
+        libkrkr2_archive.a \
+        libkrkr2_bridge.a \
+        libkrkr2_crypto.a \
+        libkrkr2_fft.a \
+        libkrkr2_encoding.a
+    do
+        if [ -f "$RUST_PROFILE_DIR/$rust_lib" ]; then
+            cp -f "$RUST_PROFILE_DIR/$rust_lib" "$ROOT_DIR/frontend/macos/krkr2_libs/"
+        fi
+    done
+
+    for bridge_lib in libcxxbridge1.a libkrkr2-image-cxxgen.a libkrkr2-archive-cxxgen.a libkrkr2-bridge-cxxgen.a libkrkr2_audio_cxx.a
+    do
+        latest_bridge_lib=$(find_latest_file "$RUST_BUILD_DIR" "$bridge_lib")
+        if [ -n "${latest_bridge_lib:-}" ] && [ -f "$latest_bridge_lib" ]; then
+            cp -f "$latest_bridge_lib" "$ROOT_DIR/frontend/macos/krkr2_libs/"
+        fi
+    done
 fi
 
 cd "$ROOT_DIR/frontend" || { echo "❌ Frontend directory not found!"; exit 1; }

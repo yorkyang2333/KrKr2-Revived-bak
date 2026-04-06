@@ -12,6 +12,8 @@
 #include <deque>
 #include <functional>
 #include <SDL3/SDL.h>
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
 
 #include "tjsCommHead.h"
 #include "tjsString.h"
@@ -130,6 +132,20 @@ static tjs_uint32             g_inputMouseButtonState = 0;
 // the queue inside krkr2_tick(), which is always called on the Dart thread.
 static std::mutex             g_logMutex;
 static std::queue<std::string> g_logQueue;
+static std::deque<std::string> g_recentLogLines;
+static std::mutex             g_recentLogMutex;
+
+static void krkr2_reset_log_buffers() {
+    {
+        std::lock_guard<std::mutex> lock(g_logMutex);
+        std::queue<std::string> empty;
+        g_logQueue.swap(empty);
+    }
+    {
+        std::lock_guard<std::mutex> lock(g_recentLogMutex);
+        g_recentLogLines.clear();
+    }
+}
 
 static void krkr2_set_startup_state(krkr2_startup_state_t state) {
     g_startupState.store(static_cast<int>(state), std::memory_order_release);
@@ -160,6 +176,22 @@ static std::string krkr2_get_last_error_copy() {
     return g_lastErrorMessage;
 }
 
+static std::string krkr2_get_recent_diagnostic_copy() {
+    std::lock_guard<std::mutex> lock(g_recentLogMutex);
+    for(auto it = g_recentLogLines.rbegin(); it != g_recentLogLines.rend(); ++it) {
+        if(it->find("An exception occurred") != std::string::npos ||
+           it->find("script exception :") != std::string::npos ||
+           it->find("Member \"") != std::string::npos ||
+           it->find("Cannot convert") != std::string::npos ||
+           it->find("Not a function or invalid method/property type") !=
+               std::string::npos ||
+           it->find("trace : ") != std::string::npos) {
+            return *it;
+        }
+    }
+    return {};
+}
+
 static std::string krkr2_build_diagnostic_message(std::string_view message) {
     std::string combined(message.empty() ?
                              "Engine reported an unspecified fatal error." :
@@ -182,6 +214,11 @@ static std::string krkr2_build_diagnostic_message(std::string_view message) {
         }
     }
 
+    const std::string recent = krkr2_get_recent_diagnostic_copy();
+    if(!recent.empty() && combined.find(recent) == std::string::npos) {
+        combined += "\nRecent engine log: " + recent;
+    }
+
     return combined;
 }
 
@@ -193,6 +230,7 @@ static void krkr2_record_engine_error(std::string_view message) {
 static void krkr2_reset_startup_tracking() {
     krkr2_clear_last_error_message();
     TVPClearPluginFailureLog();
+    krkr2_reset_log_buffers();
     g_firstFrameReady.store(false, std::memory_order_release);
     g_windowWidth.store(0, std::memory_order_release);
     g_windowHeight.store(0, std::memory_order_release);
@@ -256,8 +294,18 @@ static bool krkr2_parse_bool_value(const std::string &value, bool defVal) {
 
 static void krkr2_log_hook(const ttstr &line) {
     // Buffer the log message — safe to call from any thread.
-    std::lock_guard<std::mutex> lk(g_logMutex);
-    g_logQueue.push(line.AsStdString());
+    const std::string text = line.AsStdString();
+    {
+        std::lock_guard<std::mutex> lk(g_logMutex);
+        g_logQueue.push(text);
+    }
+    {
+        std::lock_guard<std::mutex> lock(g_recentLogMutex);
+        g_recentLogLines.push_back(text);
+        while(g_recentLogLines.size() > 128) {
+            g_recentLogLines.pop_front();
+        }
+    }
 }
 
 // Flush buffered log messages.  Must be called from the Dart thread.
@@ -447,6 +495,7 @@ static void krkr2_engine_thread_main() {
            g_startupState.load(std::memory_order_acquire) ==
                KRKR2_STARTUP_RUNNING) {
             Application->Run();
+            TVPDeliverWindowUpdateEvents();
             g_windowCount.store(TVPGetWindowCount(), std::memory_order_release);
         }
     }
@@ -456,6 +505,18 @@ static void krkr2_engine_thread_main() {
 }
 
 extern "C" {
+
+static void krkr2_ensure_named_loggers() {
+    if(!spdlog::get("core")) {
+        spdlog::stdout_color_mt("core");
+    }
+    if(!spdlog::get("plugin")) {
+        spdlog::stdout_color_mt("plugin");
+    }
+    if(!spdlog::get("tjs2")) {
+        spdlog::stdout_color_mt("tjs2");
+    }
+}
 
 void krkr2_report_startup_step(const char* message) {
     krkr2_set_startup_step((message && *message) ? message : "Startup progress");
@@ -471,6 +532,7 @@ void krkr2_report_engine_error(const char* message) {
 
 void krkr2_set_log_callback(krkr2_log_callback_t callback) {
     g_logCallback = callback;
+    krkr2_ensure_named_loggers();
     TVPSetPlatformOnLog(krkr2_log_hook);
 }
 
@@ -555,13 +617,15 @@ bool krkr2_init(int argc, char** argv) {
 
             const bool ok = Application->StartApplication(path);
             if(ok) {
+                // Match the legacy startup flow: pump one frame immediately
+                // after startup so pending window updates reach the host.
+                Application->Run();
+                TVPDeliverWindowUpdateEvents();
                 krkr2_clear_last_error_message();
                 krkr2_set_startup_step("Engine running");
                 g_windowCount.store(TVPGetWindowCount(),
                                     std::memory_order_release);
                 krkr2_set_startup_state(KRKR2_STARTUP_RUNNING);
-                TVPAddImportantLog(
-                    ttstr(TJS_W("[KRKR2] Startup state -> running")));
             } else {
                 if(krkr2_get_last_error_copy().empty()) {
                     krkr2_set_last_error_message(krkr2_build_diagnostic_message(
@@ -570,8 +634,6 @@ bool krkr2_init(int argc, char** argv) {
                 }
                 krkr2_set_startup_step("Startup failed");
                 krkr2_set_startup_state(KRKR2_STARTUP_FAILED);
-                TVPAddImportantLog(
-                    ttstr(TJS_W("[KRKR2] Startup state -> failed")));
             }
 
             fprintf(stderr,
@@ -603,6 +665,7 @@ void krkr2_shutdown() {
                 }
                 TVPClearPluginFailureLog();
                 krkr2_clear_last_error_message();
+                krkr2_reset_log_buffers();
                 g_firstFrameReady.store(false, std::memory_order_release);
                 g_windowWidth.store(0, std::memory_order_release);
                 g_windowHeight.store(0, std::memory_order_release);
@@ -632,6 +695,7 @@ void krkr2_shutdown() {
     }
     TVPClearPluginFailureLog();
     krkr2_clear_last_error_message();
+    krkr2_reset_log_buffers();
     g_firstFrameReady.store(false, std::memory_order_release);
     g_windowWidth.store(0, std::memory_order_release);
     g_windowHeight.store(0, std::memory_order_release);
@@ -796,8 +860,12 @@ LocaleConfigManager *LocaleConfigManager::GetInstance() {
     return &instance;
 }
 const std::string& LocaleConfigManager::GetText(const std::string &key) { 
-    static std::string empty;
-    return empty; 
+    auto it = AllConfig.find(key);
+    if(it == AllConfig.end()) {
+        auto inserted = AllConfig.emplace(key, key);
+        return inserted.first->second;
+    }
+    return it->second;
 }
 std::string LocaleConfigManager::GetFilePath() { return ""; }
 
@@ -945,15 +1013,7 @@ public:
         GetSrcSize(w, h);
         if (w <= 0 || h <= 0) return;
 
-        const int previousWidth = g_windowWidth.load(std::memory_order_acquire);
-        const int previousHeight =
-            g_windowHeight.load(std::memory_order_acquire);
         krkr2_update_window_size(w, h);
-        if(previousWidth != w || previousHeight != h) {
-            TVPAddImportantLog(
-                ttstr(TJS_W("[KRKR2] Render size updated to ")) + ttstr(w) +
-                TJS_W("x") + ttstr(h));
-        }
 
         if (!tex_ || tex_w_ != w || tex_h_ != h) {
             if (tex_ && g_krkr2_renderer_interface.destroy_texture) {
@@ -979,10 +1039,7 @@ public:
         
         g_krkr2_renderer_interface.update_texture(tex_, pixels, pitch);
         krkr2_update_window_size(tex_w_, tex_h_);
-        if(!g_firstFrameReady.exchange(true, std::memory_order_acq_rel)) {
-            TVPAddImportantLog(
-                ttstr(TJS_W("[KRKR2] First frame uploaded to host texture")));
-        }
+        g_firstFrameReady.exchange(true, std::memory_order_acq_rel);
     }
 
     void EndBitmapCompletion(iTVPLayerManager *manager) override {

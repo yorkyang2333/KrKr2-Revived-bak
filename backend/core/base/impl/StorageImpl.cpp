@@ -975,9 +975,30 @@ tTVPIStreamAdapter::tTVPIStreamAdapter(tTJSBinaryStream *ref) {
 //---------------------------------------------------------------------------
 tTVPIStreamAdapter::~tTVPIStreamAdapter() { delete Stream; }
 //---------------------------------------------------------------------------
+#ifndef _WIN32
+extern "C" const IID IID_IUnknown = {
+    0x00000000,
+    0x0000,
+    0x0000,
+    { 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46 }
+};
+extern "C" const IID IID_IStream = {
+    0x0000000C,
+    0x0000,
+    0x0000,
+    { 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46 }
+};
+extern "C" const IID IID_ISequentialStream = {
+    0x0c733a30,
+    0x2a1c,
+    0x11ce,
+    { 0xad, 0xe5, 0x00, 0xaa, 0x00, 0x44, 0x77, 0x3d }
+};
+#else
 extern "C" const IID IID_IUnknown;
 extern "C" const IID IID_IStream;
 extern "C" const IID IID_ISequentialStream;
+#endif
 
 HRESULT STDMETHODCALLTYPE tTVPIStreamAdapter::QueryInterface(REFIID riid,
                                                              void **ppvObject) {

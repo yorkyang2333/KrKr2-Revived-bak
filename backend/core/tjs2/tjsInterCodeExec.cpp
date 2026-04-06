@@ -854,8 +854,24 @@ namespace TJS {
                                       tTJSVariant **args, tjs_int numargs,
                                       tTJSVariant *result, bool tryCatch) {
         // execute VM codes
-        tjs_int32 *codesave;
+        tjs_int32 *codesave = CodeArea;
         try {
+            if(CodeArea == nullptr) {
+                ttstr msg(TJS_W("Attempted to execute a script context with null CodeArea"));
+                const tjs_char *contextName = GetName();
+                if(contextName && *contextName) {
+                    msg += TJS_W(" : ");
+                    msg += contextName;
+                }
+                if(Block) {
+                    const tjs_char *blockName = Block->GetName();
+                    if(blockName && *blockName) {
+                        msg += TJS_W(" @ ");
+                        msg += blockName;
+                    }
+                }
+                TJS_eTJSError(msg);
+            }
             tjs_int32 *code = codesave = CodeArea + startip;
 
             if(TJSStackTracerEnabled())
@@ -1304,32 +1320,50 @@ namespace TJS {
         } catch(eTJSSilent &) {
             throw;
         } catch(eTJSScriptError &e) {
-            e.AddTrace(this, codesave - CodeArea);
+            const tjs_int codepos =
+                (CodeArea != nullptr && codesave != nullptr) ?
+                    static_cast<tjs_int>(codesave - CodeArea) :
+                    0;
+            e.AddTrace(this, codepos);
             throw;
         } catch(eTJS &e) {
+            const tjs_int codepos =
+                (CodeArea != nullptr && codesave != nullptr) ?
+                    static_cast<tjs_int>(codesave - CodeArea) :
+                    0;
             if(tryCatch) {
                 spdlog::get("tjs2")->debug(e.GetMessage().AsStdString());
             } else {
-                DisplayExceptionGeneratedCode(codesave - CodeArea, ra_org);
+                DisplayExceptionGeneratedCode(codepos, ra_org);
             }
-            TJS_eTJSScriptError(e.GetMessage(), this, codesave - CodeArea);
+            TJS_eTJSScriptError(e.GetMessage(), this, codepos);
         } catch(exception &e) {
+            const tjs_int codepos =
+                (CodeArea != nullptr && codesave != nullptr) ?
+                    static_cast<tjs_int>(codesave - CodeArea) :
+                    0;
             if(tryCatch) {
                 spdlog::get("tjs2")->debug(e.what());
             } else {
-                DisplayExceptionGeneratedCode(codesave - CodeArea, ra_org);
+                DisplayExceptionGeneratedCode(codepos, ra_org);
             }
-            TJS_eTJSScriptError(e.what(), this, codesave - CodeArea);
+            TJS_eTJSScriptError(e.what(), this, codepos);
         } catch(const char *text) {
+            const tjs_int codepos =
+                (CodeArea != nullptr && codesave != nullptr) ?
+                    static_cast<tjs_int>(codesave - CodeArea) :
+                    0;
             if(tryCatch) {
                 spdlog::get("tjs2")->debug(text);
             } else {
-                DisplayExceptionGeneratedCode(codesave - CodeArea, ra_org);
+                DisplayExceptionGeneratedCode(codepos, ra_org);
             }
-            TJS_eTJSScriptError(text, this, codesave - CodeArea);
+            TJS_eTJSScriptError(text, this, codepos);
         }
 
-        return codesave - CodeArea;
+        return (CodeArea != nullptr && codesave != nullptr) ?
+                   static_cast<tjs_int>(codesave - CodeArea) :
+                   0;
     }
 
     //---------------------------------------------------------------------------

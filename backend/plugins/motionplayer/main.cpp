@@ -7,6 +7,7 @@
 #include "ncbind.hpp"
 #include "psbfile/PSBFile.h"
 
+#include "D3DAdaptor.h"
 #include "ResourceManager.h"
 #include "EmotePlayer.h"
 #include "Player.h"
@@ -19,7 +20,21 @@ using namespace motion;
 
 NCB_REGISTER_SUBCLASS_DELAY(SeparateLayerAdaptor) { NCB_CONSTRUCTOR(()); }
 
-NCB_REGISTER_SUBCLASS_DELAY(Player) { NCB_CONSTRUCTOR(()); }
+NCB_REGISTER_SUBCLASS_DELAY(D3DAdaptor) {
+    NCB_CONSTRUCTOR((iTJSDispatch2 *, tjs_int, tjs_int, tjs_real, tjs_real));
+    NCB_METHOD_RAW_CALLBACK(captureCanvas, &D3DAdaptor::captureCanvas, 0);
+    NCB_METHOD_RAW_CALLBACK(unloadUnusedTextures,
+                            &D3DAdaptor::unloadUnusedTextures, 0);
+}
+
+NCB_REGISTER_SUBCLASS_DELAY(Player) {
+    NCB_CONSTRUCTOR(());
+    NCB_PROPERTY(motion, getMotion, setMotion);
+    NCB_PROPERTY(count, getCount, setCount);
+    NCB_PROPERTY(loopTime, getLoopTime, setLoopTime);
+    NCB_PROPERTY(variableKeys, getVariableKeys, setVariableKeys);
+    NCB_PROPERTY(outline, getOutline, setOutline);
+}
 
 NCB_REGISTER_SUBCLASS_DELAY(EmotePlayer) {
     NCB_CONSTRUCTOR((ResourceManager));
@@ -63,6 +78,7 @@ NCB_REGISTER_CLASS(Motion) {
     NCB_PROPERTY_RAW_CALLBACK(enableD3D, Motion::getEnableD3D,
                               Motion::setEnableD3D, TJS_STATICMEMBER);
     NCB_SUBCLASS(ResourceManager, ResourceManager);
+    NCB_SUBCLASS(D3DAdaptor, D3DAdaptor);
     NCB_SUBCLASS(Player, Player);
     NCB_SUBCLASS(EmotePlayer, EmotePlayer);
     NCB_SUBCLASS(SeparateLayerAdaptor, SeparateLayerAdaptor);

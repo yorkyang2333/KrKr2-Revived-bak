@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ffi' as ffi;
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
@@ -85,17 +86,22 @@ class EngineController {
 
   int? textureId;
   Ticker? _ticker;
+  Timer? _startupMonitorTimer;
   bool _isRunning = false;
   bool _isInitialized = false;
   bool _forwardEngineLogs = true;
   int _logRetention = 250;
   Duration? _frameInterval;
   Duration? _lastTickAt;
-  String? _activeLaunchLabel;
+  String? _activeGamePath;
+  int? _lastLogFileSignature;
+  int? _baselineLogFileSignature;
+  bool _isMirroringLogFile = false;
 
   Future<void> initialize({required LauncherSettings settings}) async {
     _applyRuntimeSettings(settings);
     _lastTickAt = null;
+    _resetLogs();
     _updateStartupSnapshot(const EngineStartupSnapshot());
 
     if (Platform.isMacOS) {
@@ -188,8 +194,11 @@ class EngineController {
     _updateStartupSnapshot(
       const EngineStartupSnapshot(state: EngineStartupState.starting),
     );
-    _activeLaunchLabel = profile.name;
-    _appendLogEntry('=== Launch Start: ${profile.name} ===');
+    _resetLogs();
+    _activeGamePath = profile.path;
+    _lastLogFileSignature = null;
+    _baselineLogFileSignature = _readLogFileSignature(profile.path);
+    _isMirroringLogFile = false;
     _pushEngineOptions(profile, settings);
 
     final pathPtr = profile.path.toNativeUtf8();
@@ -209,6 +218,8 @@ class EngineController {
             errorMessage: 'Engine startup request was rejected.',
           ),
         );
+      } else {
+        _startStartupMonitor();
       }
       return launched;
     } finally {
@@ -258,16 +269,20 @@ class EngineController {
     if (!_isInitialized) {
       return;
     }
-    if (_activeLaunchLabel != null) {
-      _appendLogEntry('=== Launch End: $_activeLaunchLabel ===');
-      _activeLaunchLabel = null;
-    }
     _isRunning = false;
+    _startupMonitorTimer?.cancel();
+    _startupMonitorTimer = null;
     _ticker?.stop();
     _ticker?.dispose();
     _ticker = null;
     _lastTickAt = null;
     _bindings.krkr2_shutdown();
+    _resetLogs();
+    _activeGamePath = null;
+    _lastLogFileSignature = null;
+    _baselineLogFileSignature = null;
+    _isMirroringLogFile = false;
+    _logStreamController.add('');
     _updateStartupSnapshot(const EngineStartupSnapshot());
     _isInitialized = false;
   }
@@ -357,15 +372,18 @@ class EngineController {
     _pollStartupSnapshot();
   }
 
-  void _onLogReceived(int level, ffi.Pointer<ffi.Char> message) {
+  void _onLogReceived(int _, ffi.Pointer<ffi.Char> message) {
     if (!_forwardEngineLogs || message == ffi.nullptr) {
+      return;
+    }
+
+    if (_syncConsoleLogFromFile()) {
       return;
     }
 
     try {
       final text = message.cast<Utf8>().toDartString();
-      final logEntry = '[$level] $text';
-      _appendLogEntry(logEntry);
+      _appendLogEntry(text);
       debugPrint('Engine Log: $text');
     } catch (_) {
       debugPrint('Engine Log: [Malformed UTF-8 string]');
@@ -380,6 +398,18 @@ class EngineController {
     _logStreamController.add(entry);
   }
 
+  void _startStartupMonitor() {
+    _startupMonitorTimer?.cancel();
+    _startupMonitorTimer = Timer.periodic(const Duration(milliseconds: 250), (
+      _,
+    ) {
+      if (!_isInitialized) {
+        return;
+      }
+      _pollStartupSnapshot();
+    });
+  }
+
   void _pollStartupSnapshot() {
     if (!_isInitialized) {
       return;
@@ -390,6 +420,7 @@ class EngineController {
     );
     final bool hasFirstFrame = _bindings.krkr2_has_first_frame();
     final ({int width, int height}) size = _readWindowSize();
+    _syncConsoleLogFromFile();
     final String? errorMessage = _readErrorMessage();
 
     _updateStartupSnapshot(
@@ -435,6 +466,114 @@ class EngineController {
       return;
     }
     _startupSnapshot.value = snapshot;
+  }
+
+  bool _syncConsoleLogFromFile() {
+    final String? gamePath = _activeGamePath;
+    if (gamePath == null || gamePath.isEmpty) {
+      return false;
+    }
+
+    final File logFile = File(
+      '$gamePath${Platform.pathSeparator}savedata${Platform.pathSeparator}krkr.console.log',
+    );
+    if (!logFile.existsSync()) {
+      return false;
+    }
+
+    final FileStat stat = logFile.statSync();
+    final int signature =
+        stat.modified.millisecondsSinceEpoch ^ stat.size.hashCode;
+    if (!_isMirroringLogFile &&
+        _baselineLogFileSignature != null &&
+        signature == _baselineLogFileSignature) {
+      return false;
+    }
+    if (_lastLogFileSignature == signature) {
+      return _isMirroringLogFile;
+    }
+
+    _lastLogFileSignature = signature;
+    _baselineLogFileSignature = null;
+
+    final Uint8List bytes = logFile.readAsBytesSync();
+    final String decoded = _decodeKrkrLog(bytes);
+    final List<String> latestSession = _extractLatestLogSession(decoded);
+
+    _replaceLogEntries(latestSession);
+    _isMirroringLogFile = true;
+    return true;
+  }
+
+  int? _readLogFileSignature(String gamePath) {
+    final File logFile = File(
+      '$gamePath${Platform.pathSeparator}savedata${Platform.pathSeparator}krkr.console.log',
+    );
+    if (!logFile.existsSync()) {
+      return null;
+    }
+    final FileStat stat = logFile.statSync();
+    return stat.modified.millisecondsSinceEpoch ^ stat.size.hashCode;
+  }
+
+  String _decodeKrkrLog(Uint8List bytes) {
+    if (bytes.isEmpty) {
+      return '';
+    }
+
+    int start = 0;
+    if (bytes.length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE) {
+      start = 2;
+    }
+
+    final bool looksUtf16Le =
+        bytes.length >= 4 &&
+        (bytes[1] == 0x00 || bytes[3] == 0x00 || start == 2);
+    if (!looksUtf16Le) {
+      return String.fromCharCodes(bytes);
+    }
+
+    final List<int> codeUnits = <int>[];
+    for (int i = start; i + 1 < bytes.length; i += 2) {
+      codeUnits.add(bytes[i] | (bytes[i + 1] << 8));
+    }
+    return String.fromCharCodes(codeUnits);
+  }
+
+  List<String> _extractLatestLogSession(String decoded) {
+    final List<String> lines = decoded
+        .replaceAll('\r', '')
+        .split('\n')
+        .map((String line) => line.replaceAll('\u0000', '').trimRight())
+        .toList();
+
+    int startIndex = 0;
+    for (int index = lines.length - 1; index >= 0; index -= 1) {
+      if (lines[index].startsWith('Logging to ')) {
+        startIndex = index;
+        break;
+      }
+    }
+
+    return lines
+        .sublist(startIndex)
+        .where((String line) => line.trim().isNotEmpty)
+        .toList();
+  }
+
+  void _replaceLogEntries(List<String> entries) {
+    if (listEquals(logs, entries)) {
+      return;
+    }
+
+    logs
+      ..clear()
+      ..addAll(entries);
+    _logStreamController.add(entries.isNotEmpty ? entries.last : '');
+  }
+
+  void _resetLogs() {
+    logs.clear();
   }
 
   EngineStartupState _mapStartupState(int state) {

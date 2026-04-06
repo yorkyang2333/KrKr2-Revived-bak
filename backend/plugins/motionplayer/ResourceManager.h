@@ -24,5 +24,6 @@ namespace motion {
 
     private:
         inline static int _decryptSeed;
+        inline static tTJSVariantClosure _decryptFunc;
     };
 } // namespace motion

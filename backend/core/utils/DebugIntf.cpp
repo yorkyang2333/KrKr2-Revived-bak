@@ -380,26 +380,37 @@ void TVPAddLog(const ttstr &line, bool appendtoimportant) {
         TVPLogDeque->erase(i, i + 100);
     }
 
-    // FIXME: need fix get timebuf
-    // FIXME: remove prefix `2` log message: 2 xxxx
-    //    tjs_int timebuflen = (tjs_int)TJS_strlen(timebuf);
     ttstr buf((tTJSStringBufferLength)(/*timebuflen + 1 +*/ line.GetLen()));
     tjs_char *p = buf.Independ();
-    //    TJS_strcpy(p, timebuf);
-    //    p += timebuflen;
     *p = TJS_W(' ');
     p++;
     TJS_strcpy(p, line.c_str());
     if(TVPOnLog)
         TVPOnLog(buf);
-    
+
+    const tjs_int prefixLen =
+        prevtimebuf.GetLen() + 1 + (appendtoimportant ? 2 : 0);
+    ttstr displayBuf((tTJSStringBufferLength)(prefixLen + line.GetLen()));
+    p = displayBuf.Independ();
+    TJS_strcpy(p, prevtimebuf.c_str());
+    p += prevtimebuf.GetLen();
+    *p = TJS_W(' ');
+    p++;
+    if(appendtoimportant) {
+        *p = TJS_W('!');
+        p++;
+        *p = TJS_W(' ');
+        p++;
+    }
+    TJS_strcpy(p, line.c_str());
+
     if(TVPPlatformOnLog)
-        TVPPlatformOnLog(buf);
+        TVPPlatformOnLog(displayBuf);
 
     // Application->PrintConsole(buf, appendtoimportant);
 
     if(TVPLoggingToFile)
-        TVPLogStreamHolder.Log(buf);
+        TVPLogStreamHolder.Log(displayBuf);
 }
 
 //---------------------------------------------------------------------------

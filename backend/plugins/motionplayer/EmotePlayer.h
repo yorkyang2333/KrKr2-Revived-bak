@@ -3,13 +3,14 @@
 //
 #pragma once
 
+#include "Player.h"
 #include "ResourceManager.h"
 
 namespace motion {
 
     enum class MaskMode { MaskModeAlpha };
 
-    class EmotePlayer {
+    class EmotePlayer : public Player {
     public:
         explicit EmotePlayer(ResourceManager rm) {}
 

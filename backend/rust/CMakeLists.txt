@@ -106,3 +106,4 @@ target_include_directories(krkr2_archive_adapter PUBLIC
 # but we link it later in the main CMake tree to avoid circular deps during target setup
 target_link_libraries(krkr2_archive_adapter PUBLIC tjs2)
 target_link_libraries(krkr2_archive_adapter PUBLIC krkr2-archive)
+target_link_libraries(krkr2_archive_adapter PUBLIC krkr2_bridge_glue)
